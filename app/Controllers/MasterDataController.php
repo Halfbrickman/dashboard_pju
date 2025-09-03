@@ -33,10 +33,10 @@ class MasterDataController extends Controller
         $sumberdataId = $this->request->getVar('sumberdata');
         
         $koordinatQuery = $this->koordinatModel->select('koordinat.*, kecamatan.nama_kec, kelurahan.nama_kel, sumber_data.nama_sumber, kota_kab.nama_kotakab')
-                                             ->join('kecamatan', 'kecamatan.id_kec = koordinat.id_kec')
-                                             ->join('kelurahan', 'kelurahan.id_kel = koordinat.id_kel')
-                                             ->join('sumber_data', 'sumber_data.id_sumberdata = koordinat.id_sumberdata')
-                                             ->join('kota_kab', 'kota_kab.id_kotakab = koordinat.id_kotakab');
+                                             ->join('kecamatan', 'kecamatan.id_kec = koordinat.id_kec', 'left')
+                                             ->join('kelurahan', 'kelurahan.id_kel = koordinat.id_kel', 'left')
+                                             ->join('sumber_data', 'sumber_data.id_sumberdata = koordinat.id_sumberdata', 'left')
+                                             ->join('kota_kab', 'kota_kab.id_kotakab = koordinat.id_kotakab', 'left');
 
         if ($sumberdataId) {
             $koordinatQuery->where('koordinat.id_sumberdata', $sumberdataId);
