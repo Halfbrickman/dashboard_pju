@@ -20,9 +20,21 @@ class JudulKeteranganController extends Controller
 
     public function index()
     {
+        $allJudulKeterangan = $this->judulKeteranganModel->getJudulKeterangan();
+
+        // Mengelompokkan data berdasarkan 'nama_sumber'
+        $groupedData = [];
+        foreach ($allJudulKeterangan as $row) {
+            $sumber = $row['nama_sumber'];
+            if (!isset($groupedData[$sumber])) {
+                $groupedData[$sumber] = [];
+            }
+            $groupedData[$sumber][] = $row;
+        }
+
         $data = [
-            'title'           => 'Data Judul Keterangan',
-            'judulKeterangan' => $this->judulKeteranganModel->getJudulKeterangan()
+            'title' => 'Data Judul Keterangan',
+            'groupedJudulKeterangan' => $groupedData
         ];
 
         return view('Template/header', $data)

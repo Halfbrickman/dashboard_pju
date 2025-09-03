@@ -35,3 +35,6 @@ $routes->group('api', function ($routes) {
     $routes->get('kelurahan/(:num)', 'MasterDataController::getKelurahanByKecamatan/$1');
     $routes->get('judul-keterangan/(:num)', 'MasterDataController::getJudulKeteranganBySumberData/$1');
 });
+
+$routes->get('/maps', 'MapController::index');
+$routes->get('/api/markers', 'MapController::getMarkerData');

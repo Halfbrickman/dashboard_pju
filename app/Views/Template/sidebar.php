@@ -12,6 +12,11 @@
                     <i class="align-middle" data-feather="sliders"></i> <span class="align-middle">Dashboard</span>
                 </a>
             </li>
+            <li class="sidebar-item <?= (strpos(current_url(), '/maps') !== false) ? 'active' : '' ?>">
+                <a class="sidebar-link" href="<?= base_url('/maps') ?>">
+                    <i class="align-middle" data-feather="map-pin"></i> <span class="align-middle">Peta Data</span>
+                </a>
+            </li>
             <li class="sidebar-header">
                 Master Data
             </li>

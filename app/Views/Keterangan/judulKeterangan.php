@@ -7,35 +7,37 @@
             </div>
         </div>
 
-        <div class="row">
+        <?php foreach ($groupedJudulKeterangan as $sumberData => $rows) : ?>
+        <div class="row mt-4">
             <div class="col-12">
                 <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title fw-bold">Sumber Data: <?= esc($sumberData); ?></h5>
+                    </div>
                     <div class="card-body">
                         <table class="table table-hover my-0">
                             <thead>
                                 <tr>
                                     <th>ID</th>
                                     <th>Nama Keterangan</th>
-                                    <th>Sumber Data</th>
                                     <th class="text-center">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php $i = 1; ?>
-                                <?php foreach ($judulKeterangan as $row) : ?>
-                                    <tr>
-                                        <td><?= esc($i++); ?></td>
-                                        <td><?= esc($row['jdl_keterangan']); ?></td>
-                                        <td><?= esc($row['nama_sumber']); ?></td>
-                                        <td class="text-end" style="width: 150px;">
-                                            <a href="/judul-keterangan/form/<?= esc($row['id_jdlketerangan']); ?>" class="btn btn-warning btn-sm" style="border-radius: 10px;">Edit</a>
-                                            <form action="/judul-keterangan/delete/<?= esc($row['id_jdlketerangan']); ?>" method="post" class="d-inline delete-form">
-                                                <?= csrf_field(); ?>
-                                                <input type="hidden" name="_method" value="DELETE">
-                                                <button type="submit" class="btn btn-danger btn-sm" style="border-radius: 10px;">Hapus</button>
-                                            </form>
-                                        </td>
-                                    </tr>
+                                <?php foreach ($rows as $row) : ?>
+                                <tr>
+                                    <td><?= esc($i++); ?></td>
+                                    <td><?= esc($row['jdl_keterangan']); ?></td>
+                                    <td class="text-end" style="width: 150px;">
+                                        <a href="/judul-keterangan/form/<?= esc($row['id_jdlketerangan']); ?>" class="btn btn-warning btn-sm" style="border-radius: 10px;">Edit</a>
+                                        <form action="/judul-keterangan/delete/<?= esc($row['id_jdlketerangan']); ?>" method="post" class="d-inline delete-form">
+                                            <?= csrf_field(); ?>
+                                            <input type="hidden" name="_method" value="DELETE">
+                                            <button type="submit" class="btn btn-danger btn-sm" style="border-radius: 10px;">Hapus</button>
+                                        </form>
+                                    </td>
+                                </tr>
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
@@ -43,6 +45,7 @@
                 </div>
             </div>
         </div>
+        <?php endforeach; ?>
     </div>
 </main>
 
