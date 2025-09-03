@@ -18,7 +18,7 @@
 												</div>
 												<h1 class="mt-1 mb-3"><?php echo number_format($dataKordinat, 0, '', '.'); ?></h1>
 												<div class="mb-0">
-													<span class="text-muted">Data seluruh kordinat</span>
+													<span class="text-muted">semua koordinat</span>
 												</div>
 											</div>
 										</div>
