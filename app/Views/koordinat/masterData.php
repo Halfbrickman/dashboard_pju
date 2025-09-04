@@ -2,9 +2,11 @@
     <div class="container-fluid p-0">
         <div class="d-flex justify-content-between align-items-center">
             <h1 class="h3 mb-3">Master Data</h1>
-            <a href="/koordinat/form" class="btn btn-primary btn-sm ml-2">
-                <i class="fas fa-plus"></i> Tambah Data
-            </a>
+            <?php if (session()->get('role_id') == 1) : ?>
+                <a href="/koordinat/form" class="btn btn-primary btn-sm ml-2">
+                    <i class="fas fa-plus"></i> Tambah Data
+                </a>
+            <?php endif; ?>
         </div>
 
         <div class="row">
@@ -35,7 +37,9 @@
                                     <th>Kecamatan</th>
                                     <th>Kelurahan</th>
                                     <th>Sumber Data</th>
-                                    <th>Aksi</th>
+                                    <?php if (session()->get('role_id') == 1) : ?>
+                                        <th>Aksi</th>
+                                    <?php endif; ?>
                                 </tr>
                             </thead>
                             <tbody>
@@ -54,13 +58,15 @@
                                             <td><?= esc($row['nama_kec']); ?></td>
                                             <td><?= esc($row['nama_kel']); ?></td>
                                             <td><?= esc($row['nama_sumber']); ?></td>
-                                            <td>
-                                                <a href="/koordinat/form/<?= esc($row['id_koordinat']); ?>" class="btn btn-warning btn-sm">Edit</a>
-                                                <button type="button" class="btn btn-danger btn-sm" onclick="confirmDelete(<?= esc($row['id_koordinat']); ?>)">Hapus</button>
-                                                <form id="delete-form-<?= esc($row['id_koordinat']); ?>" action="/koordinat/delete/<?= esc($row['id_koordinat']); ?>" method="post" class="d-inline">
-                                                    <?= csrf_field(); ?>
-                                                </form>
-                                            </td>
+                                            <?php if (session()->get('role_id') == 1) : ?>
+                                                <td>
+                                                    <a href="/koordinat/form/<?= esc($row['id_koordinat']); ?>" class="btn btn-warning btn-sm">Edit</a>
+                                                    <button type="button" class="btn btn-danger btn-sm" onclick="confirmDelete(<?= esc($row['id_koordinat']); ?>)">Hapus</button>
+                                                    <form id="delete-form-<?= esc($row['id_koordinat']); ?>" action="/koordinat/delete/<?= esc($row['id_koordinat']); ?>" method="post" class="d-inline">
+                                                        <?= csrf_field(); ?>
+                                                    </form>
+                                                </td>
+                                            <?php endif; ?>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php else: ?>
