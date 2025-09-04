@@ -18,7 +18,7 @@
                         <table class="table table-hover my-0">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
+                                    <th style="width: 15px;">ID</th>
                                     <th>Nama Keterangan</th>
                                     <th class="text-center">Aksi</th>
                                 </tr>

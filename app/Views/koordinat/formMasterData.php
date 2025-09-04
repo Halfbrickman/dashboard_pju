@@ -22,7 +22,7 @@
                                 <label for="latitude">Lattitude</label>
                                 <input type="text" class="form-control" id="latitude" name="latitude" value="<?= old('latitude', isset($koordinat) ? $koordinat['latitude'] : ''); ?>" required>
                             </div>
-                            
+
                             <div class="form-group">
                                 <label for="longitude">Longitude</label>
                                 <input type="text" class="form-control" id="longitude" name="longitude" value="<?= old('longitude', isset($koordinat) ? $koordinat['longitude'] : ''); ?>" required>
@@ -44,11 +44,6 @@
                                 <label for="id_kec">Kecamatan</label>
                                 <select name="id_kec" id="id_kec" class="form-control" disabled>
                                     <option value="">-- Pilih Kecamatan --</option>
-                                    <?php foreach ($kecamatan as $row) : ?>
-                                        <option value="<?= esc($row['id_kec']); ?>" <?= old('id_kec', isset($koordinat) ? $koordinat['id_kec'] : '') == $row['id_kec'] ? 'selected' : '' ?>>
-                                            <?= esc($row['nama_kec']); ?>
-                                        </option>
-                                    <?php endforeach; ?>
                                 </select>
                             </div>
 
@@ -56,11 +51,6 @@
                                 <label for="id_kel">Kelurahan</label>
                                 <select name="id_kel" id="id_kel" class="form-control" disabled>
                                     <option value="">-- Pilih Kelurahan --</option>
-                                    <?php foreach ($kelurahan as $row) : ?>
-                                        <option value="<?= esc($row['id_kel']); ?>" <?= old('id_kel', isset($koordinat) ? $koordinat['id_kel'] : '') == $row['id_kel'] ? 'selected' : '' ?>>
-                                            <?= esc($row['nama_kel']); ?>
-                                        </option>
-                                    <?php endforeach; ?>
                                 </select>
                             </div>
 
@@ -77,7 +67,7 @@
                             </div>
 
                             <div id="keterangan-fields"></div>
-                            
+
                             <div class="card-footer">
                                 <button type="submit" class="btn btn-primary">Simpan</button>
                                 <a href="/koordinat" class="btn btn-secondary">Batal</a>
@@ -98,7 +88,63 @@
     const editMode = <?= isset($koordinat) ? 'true' : 'false' ?>;
 
     $(document).ready(function() {
-        // Function to load keterangan fields
+        const initialKotaKab = <?= isset($koordinat) ? $koordinat['id_kotakab'] : 'null' ?>;
+        const initialKec = <?= isset($koordinat) ? $koordinat['id_kec'] : 'null' ?>;
+        const initialKel = <?= isset($koordinat) ? $koordinat['id_kel'] : 'null' ?>;
+
+        // Function to load sub-districts (Kecamatan)
+        function loadKecamatan(id_kotakab, selected_kec = null) {
+            if (id_kotakab) {
+                $.ajax({
+                    url: baseUrl + 'api/kecamatan/' + id_kotakab,
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        $('#id_kec').empty().append('<option value="">-- Pilih Kecamatan --</option>').prop('disabled', false);
+                        $('#id_kel').empty().append('<option value="">-- Pilih Kelurahan --</option>').prop('disabled', true);
+                        $.each(data, function(key, value) {
+                            $('#id_kec').append('<option value="' + value.id_kec + '">' + value.nama_kec + '</option>');
+                        });
+                        
+                        if (selected_kec) {
+                            // Set the selected value for sub-district
+                            $('#id_kec').val(selected_kec);
+                            // After setting the sub-district, now load the village/kelurahan
+                            if (initialKel) {
+                                loadKelurahan(selected_kec, initialKel);
+                            }
+                        }
+                    }
+                });
+            } else {
+                $('#id_kec').empty().append('<option value="">-- Pilih Kecamatan --</option>').prop('disabled', true);
+                $('#id_kel').empty().append('<option value="">-- Pilih Kelurahan --</option>').prop('disabled', true);
+            }
+        }
+
+        // Function to load villages (Kelurahan)
+        function loadKelurahan(id_kec, selected_kel = null) {
+            if (id_kec) {
+                $.ajax({
+                    url: baseUrl + 'api/kelurahan/' + id_kec,
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        $('#id_kel').empty().append('<option value="">-- Pilih Kelurahan --</option>').prop('disabled', false);
+                        $.each(data, function(key, value) {
+                            $('#id_kel').append('<option value="' + value.id_kel + '">' + value.nama_kel + '</option>');
+                        });
+                        if (selected_kel) {
+                            $('#id_kel').val(selected_kel);
+                        }
+                    }
+                });
+            } else {
+                $('#id_kel').empty().append('<option value="">-- Pilih Kelurahan --</option>').prop('disabled', true);
+            }
+        }
+        
+        // Function to load dynamic Keterangan fields
         function loadKeteranganFields(idSumberData, isiKeterangan = []) {
             const keteranganContainer = $('#keterangan-fields');
             keteranganContainer.empty();
@@ -139,61 +185,38 @@
                 });
             }
         }
-        
-        // Initial load for edit mode
+
+        // --- Initial Load Logic for Edit Mode ---
         if (editMode) {
+            if (initialKotaKab) {
+                // First, load the sub-districts and select the correct one
+                loadKecamatan(initialKotaKab, initialKec);
+            }
             const initialSumberDataId = $('#id_sumberdata').val();
-            const initialIsiKeterangan = <?= json_encode($isiKeterangan); ?>;
+            const initialIsiKeterangan = <?= json_encode(isset($isiKeterangan) ? $isiKeterangan : []); ?>;
             if (initialSumberDataId) {
                 loadKeteranganFields(initialSumberDataId, initialIsiKeterangan);
             }
         }
 
+        // --- Event Handlers ---
+        // Event handler for Kota/Kab change
+        $('#id_kotakab').change(function() {
+            const id_kotakab = $(this).val();
+            loadKecamatan(id_kotakab);
+        });
+
+        // Event handler for Kecamatan change
+        $('#id_kec').change(function() {
+            const id_kec = $(this).val();
+            loadKelurahan(id_kec);
+        });
+
         // Change event for Sumber Data dropdown
         $('#id_sumberdata').change(function() {
             const idSumberData = $(this).val();
-            loadKeteranganFields(idSumberData);
+            loadKeteranganFields(idSumberData, []);
         });
 
-        // Other change events (Kota/Kab, Kecamatan)
-        $('#id_kotakab').change(function() {
-            const id_kotakab = $(this).val();
-            if (id_kotakab) {
-                $.ajax({
-                    url: baseUrl + 'api/kecamatan/' + id_kotakab,
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function(data) {
-                        $('#id_kec').empty().append('<option value="">-- Pilih Kecamatan --</option>').prop('disabled', false);
-                        $('#id_kel').empty().append('<option value="">-- Pilih Kelurahan --</option>').prop('disabled', true);
-                        $.each(data, function(key, value) {
-                            $('#id_kec').append('<option value="' + value.id_kec + '">' + value.nama_kec + '</option>');
-                        });
-                    }
-                });
-            } else {
-                $('#id_kec').empty().append('<option value="">-- Pilih Kecamatan --</option>').prop('disabled', true);
-                $('#id_kel').empty().append('<option value="">-- Pilih Kelurahan --</option>').prop('disabled', true);
-            }
-        });
-
-        $('#id_kec').change(function() {
-            const id_kec = $(this).val();
-            if (id_kec) {
-                $.ajax({
-                    url: baseUrl + 'api/kelurahan/' + id_kec,
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function(data) {
-                        $('#id_kel').empty().append('<option value="">-- Pilih Kelurahan --</option>').prop('disabled', false);
-                        $.each(data, function(key, value) {
-                            $('#id_kel').append('<option value="' + value.id_kel + '">' + value.nama_kel + '</option>');
-                        });
-                    }
-                });
-            } else {
-                $('#id_kel').empty().append('<option value="">-- Pilih Kelurahan --</option>').prop('disabled', true);
-            }
-        });
     });
 </script>

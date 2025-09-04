@@ -155,9 +155,10 @@ class MasterDataController extends Controller
         $this->isiKeteranganModel->where('id_koordinat', $id)->delete();
         $this->koordinatModel->delete($id);
         
-        return redirect()->to('/koordinat')->with('success', 'Data koordinat berhasil dihapus.');
+        // Ubah respons menjadi JSON agar bisa ditangani oleh fetch API
+        return $this->response->setJSON(['status' => 'success', 'message' => 'Data koordinat berhasil dihapus.']);
     }
-    
+        
     public function getKecamatanByKotaKab($id_kotakab)
     {
         $kecamatan = $this->mWilayah->getKecamatan(['id_kotakab' => $id_kotakab]);

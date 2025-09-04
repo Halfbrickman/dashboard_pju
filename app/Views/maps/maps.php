@@ -34,8 +34,8 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" id="modalBodyContent">
-                </div>
-            <div class="modal-footer">
+            </div>
+            <div class="modal-footer" id="modalFooterButtons">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
             </div>
         </div>
@@ -104,35 +104,37 @@
 
     // Fungsi untuk menampilkan modal dengan data detail
     function showDetailModal(idKoordinat) {
-        // Ambil data dari API atau dari data yang sudah di-cache jika memungkinkan
         fetch(`<?= base_url('api/markers'); ?>?id_koordinat=${idKoordinat}`)
             .then(response => response.json())
             .then(data => {
                 if (data.length > 0) {
                     var item = data[0];
                     var modalBody = document.getElementById('modalBodyContent');
-                    modalBody.innerHTML = ''; // Kosongkan konten sebelumnya
+                    var modalFooter = document.getElementById('modalFooterButtons'); // Ambil elemen footer
+
+                    modalBody.innerHTML = '';
+                    modalFooter.innerHTML = ''; // Kosongkan footer sebelumnya
 
                     // Buat konten modal
                     let contentHtml = `
-                        <h6>Informasi Umum</h6>
-                        <ul>
-                            <li><strong>Sumber Data:</strong> ${item.nama_sumber}</li>
-                            <li><strong>Kota/Kab:</strong> ${item.nama_kotakab || '-'}</li>
-                            <li><strong>Kecamatan:</strong> ${item.nama_kec || '-'}</li>
-                            <li><strong>Kelurahan:</strong> ${item.nama_kel || '-'}</li>
-                            <li><strong>Latitude:</strong> ${item.latitude}</li>
-                            <li><strong>Longitude:</strong> ${item.longitude}</li>
-                        </ul>
-                    `;
+                    <h6>Informasi Umum</h6>
+                    <ul>
+                        <li><strong>Sumber Data:</strong> ${item.nama_sumber}</li>
+                        <li><strong>Kota/Kab:</strong> ${item.nama_kotakab || '-'}</li>
+                        <li><strong>Kecamatan:</strong> ${item.nama_kec || '-'}</li>
+                        <li><strong>Kelurahan:</strong> ${item.nama_kel || '-'}</li>
+                        <li><strong>Latitude:</strong> ${item.latitude}</li>
+                        <li><strong>Longitude:</strong> ${item.longitude}</li>
+                    </ul>
+                `;
 
                     // Tambahkan data keterangan jika ada
                     if (item.keterangan && item.keterangan.length > 0) {
                         contentHtml += `
-                            <hr>
-                            <h6>Keterangan Tambahan</h6>
-                            <ul>
-                        `;
+                        <hr>
+                        <h6>Keterangan Tambahan</h6>
+                        <ul>
+                    `;
                         item.keterangan.forEach(keteranganItem => {
                             contentHtml += `<li><strong>${keteranganItem.jdl_keterangan}:</strong> ${keteranganItem.isi_keterangan}</li>`;
                         });
@@ -140,6 +142,17 @@
                     }
 
                     modalBody.innerHTML = contentHtml;
+
+                    // Tambahkan tombol Edit dan Delete ke footer
+                    modalFooter.innerHTML = `
+                    <a href="<?= base_url('koordinat/form/'); ?>${idKoordinat}" class="btn btn-warning btn-sm">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                    <button class="btn btn-danger btn-sm" onclick="confirmDelete(${idKoordinat})">
+                        <i class="fas fa-trash-alt"></i> Delete
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
+                `;
 
                     // Tampilkan modal (menggunakan Bootstrap 5)
                     var detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
@@ -151,6 +164,59 @@
             .catch(error => console.error('Error fetching data for modal:', error));
     }
 
+    function confirmDelete(id) {
+        Swal.fire({
+            title: 'Apakah Anda yakin?',
+            text: "Anda tidak akan dapat mengembalikan ini!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Ya, hapus!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Menggunakan fetch API untuk mengirim permintaan POST
+                fetch('<?= base_url('koordinat/delete/'); ?>' + id, {
+                        method: 'POST', // Gunakan POST untuk request delete
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': '<?= csrf_hash() ?>' // Tambahkan CSRF token
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        Swal.fire(
+                            'Dihapus!',
+                            'Data telah berhasil dihapus.',
+                            'success'
+                        ).then(() => {
+                            // Muat ulang data marker setelah penghapusan
+                            loadMarkers(document.getElementById('filterSumberData').value);
+                            // Tutup modal
+                            var detailModal = bootstrap.Modal.getInstance(document.getElementById('detailModal'));
+                            if (detailModal) {
+                                detailModal.hide();
+                            }
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        Swal.fire(
+                            'Gagal!',
+                            'Terjadi kesalahan saat menghapus data.',
+                            'error'
+                        );
+                    });
+            }
+        });
+    }
     // Event listener untuk filter
     document.getElementById('filterSumberData').addEventListener('change', function() {
         var selectedId = this.value;
