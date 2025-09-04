@@ -52,13 +52,12 @@ class Dashboard extends BaseController
         
         $data = [
             'title' => 'Dashboard',
-            'koordinat_json' => json_encode($koordinatData) // Kirim data yang sudah lengkap
+            'koordinat_json' => json_encode($koordinatData), // Encode data koordinat menjadi JSON
+            'dataKordinat' => count($koordinatData),
+            'dataPerSumber' => [],
+            'datasets' => [],
+            'labels' => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
         ];
-        
-        $data['dataKordinat'] = count($koordinatData);
-        $data['dataPerSumber'] = [];
-        $datasets = [];
-        $labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         
         foreach ($sumberData as $sumber) {
             $jumlah = $modelKordinat->where('id_sumberdata', $sumber['id_sumberdata'])->countAllResults();
@@ -87,13 +86,24 @@ class Dashboard extends BaseController
             ];
         }
 
-        $data['labels'] = json_encode($labels);
-        $data['datasets'] = json_encode($datasets);
-        
-        return view('Template/header', $data)
-             . view('Template/sidebar')
-             . view('dashboard', $data)
-             . view('Template/assetDashboard')
-             . view('Template/footer');
+        // Kirim semua data ke view
+        $data['labels'] = json_encode($data['labels']);
+        $data['datasets'] = json_encode($data['datasets']);
+
+        $userRoleId = session()->get('role_id');
+
+        if ($userRoleId == 1) { // Jika role_id adalah Admin
+            echo view('Template/header', $data);
+            echo view('Template/sidebar');
+            echo view('dashboard', $data); // Tampilkan view khusus admin
+            echo view('Template/assetDashboard');
+            echo view('Template/footer');
+        } else { // Jika role_id adalah User biasa
+            echo view('Template/header', $data);
+            echo view('Template/sidebar');
+            echo view('dashboard', $data); // Tampilkan view dashboard biasa
+            echo view('Template/assetDashboard');
+            echo view('Template/footer');
+        }
     }
 }

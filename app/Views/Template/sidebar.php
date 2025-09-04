@@ -17,6 +17,8 @@
                     <i class="align-middle" data-feather="map-pin"></i> <span class="align-middle">Peta Data</span>
                 </a>
             </li>
+
+            <?php if (session()->get('isLoggedIn')): ?>
             <li class="sidebar-header">
                 Master Data
             </li>
@@ -25,6 +27,7 @@
                     <i class="align-middle" data-feather="map"></i> <span class="align-middle">Data Koordinat</span>
                 </a>
             </li>
+            <?php if (session()->get('role_id') == 1): ?>
             <li class="sidebar-item <?= (strpos(current_url(), 'sumberdata') !== false) ? 'active' : '' ?>">
                 <a class="sidebar-link" href="<?= base_url('sumberdata') ?>">
                     <i class="align-middle" data-feather="folder"></i> <span class="align-middle">Sumber Data</span>
@@ -35,7 +38,22 @@
                     <i class="align-middle" data-feather="info"></i> <span class="align-middle">Master Keterangan</span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php endif; ?>
         </ul>
+
+        <div class="sidebar-cta-content mt-3">
+            <?php if (session()->get('isLoggedIn')): ?>
+                <a href="<?= base_url('logout') ?>" class="btn btn-primary w-100">
+                    <i class="align-middle me-2" data-feather="log-out"></i> Logout
+                </a>
+            <?php else: ?>
+                <a href="<?= base_url('login') ?>" class="btn btn-primary w-100">
+                    <i class="align-middle me-2" data-feather="log-in"></i> Login
+                </a>
+            <?php endif; ?>
+        </div>
+
     </div>
 </nav>
 
