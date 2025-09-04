@@ -4,7 +4,7 @@ namespace App\Controllers;
 
 use App\Models\M_koordinat;
 use App\Models\M_sumberData;
-use App\Models\M_isiKeterangan; // <-- [TAMBAHKAN] Panggil model M_isiKeterangan
+use App\Models\M_isiKeterangan;
 
 class Dashboard extends BaseController
 {
@@ -12,51 +12,40 @@ class Dashboard extends BaseController
     {
         $modelKordinat = new M_koordinat();
         $modelSumberData = new M_sumberData();
-        $modelIsiKeterangan = new M_isiKeterangan(); // <-- [TAMBAHKAN] Buat instance model
+        $modelIsiKeterangan = new M_isiKeterangan();
 
-        // 1. Ambil data koordinat utama
         $koordinatData = $modelKordinat->getDataKoordinat();
         
-        // **[MODIFIKASI UTAMA DIMULAI DI SINI]**
-        // Lakukan langkah-langkah berikut hanya jika ada data koordinat
         if (!empty($koordinatData)) {
-            // 2. Kumpulkan semua ID koordinat dari data di atas
             $koordinatIds = array_column($koordinatData, 'id_koordinat');
-
-            // 3. Ambil SEMUA keterangan tambahan yang relevan dalam SATU query
             $allKeterangan = $modelIsiKeterangan
                 ->select('isi_keterangan.id_koordinat, isi_keterangan.isi_keterangan, judul_keterangan.jdl_keterangan')
                 ->join('judul_keterangan', 'judul_keterangan.id_jdlketerangan = isi_keterangan.id_jdlketerangan')
-                ->whereIn('isi_keterangan.id_koordinat', $koordinatIds) // Gunakan whereIn untuk efisiensi
+                ->whereIn('isi_keterangan.id_koordinat', $koordinatIds)
                 ->findAll();
 
-            // 4. Petakan keterangan ke ID koordinatnya agar mudah diakses
             $keteranganMap = [];
             foreach ($allKeterangan as $keterangan) {
                 $id = $keterangan['id_koordinat'];
-                // Hapus id_koordinat dari array agar tidak mubazir
                 unset($keterangan['id_koordinat']); 
                 $keteranganMap[$id][] = $keterangan;
             }
 
-            // 5. Gabungkan data keterangan ke dalam data koordinat utama
-            foreach ($koordinatData as &$item) { // Gunakan '&' agar bisa memodifikasi array asli
+            foreach ($koordinatData as &$item) {
                 $id = $item['id_koordinat'];
-                // Tambahkan key baru 'keterangan_tambahan'
-                $item['keterangan_tambahan'] = $keteranganMap[$id] ?? []; // Jika tidak ada, beri array kosong
+                $item['keterangan_tambahan'] = $keteranganMap[$id] ?? [];
             }
         }
-        // **[MODIFIKASI SELESAI]**
         
         $sumberData = $modelSumberData->findAll();
         
         $data = [
             'title' => 'Dashboard',
-            'koordinat_json' => json_encode($koordinatData), // Encode data koordinat menjadi JSON
+            'koordinat_json' => json_encode($koordinatData),
             'dataKordinat' => count($koordinatData),
             'dataPerSumber' => [],
-            'datasets' => [],
             'labels' => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+            'datasets' => [], // Inisialisasi datasets di sini
         ];
         
         foreach ($sumberData as $sumber) {
@@ -77,7 +66,8 @@ class Dashboard extends BaseController
             
             $dataBulanan = array_values($dataPerBulan);
             
-            $datasets[] = [
+            // Tambahkan setiap dataset ke dalam array $data['datasets']
+            $data['datasets'][] = [
                 'label' => $sumber['nama_sumber'],
                 'fill' => false,
                 'backgroundColor' => $sumber['warna'],
@@ -86,22 +76,22 @@ class Dashboard extends BaseController
             ];
         }
 
-        // Kirim semua data ke view
+        // Encode data untuk chart
         $data['labels'] = json_encode($data['labels']);
         $data['datasets'] = json_encode($data['datasets']);
-
+        
         $userRoleId = session()->get('role_id');
 
         if ($userRoleId == 1) { // Jika role_id adalah Admin
             echo view('Template/header', $data);
             echo view('Template/sidebar');
-            echo view('dashboard', $data); // Tampilkan view khusus admin
+            echo view('dashboard', $data);
             echo view('Template/assetDashboard');
             echo view('Template/footer');
         } else { // Jika role_id adalah User biasa
             echo view('Template/header', $data);
             echo view('Template/sidebar');
-            echo view('dashboard', $data); // Tampilkan view dashboard biasa
+            echo view('dashboard', $data);
             echo view('Template/assetDashboard');
             echo view('Template/footer');
         }

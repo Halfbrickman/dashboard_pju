@@ -81,17 +81,18 @@
                             icon: customIcon
                         });
 
-                        // Konten popup dengan tombol "Detail"
+                        // Konten popup dengan tombol "Detail" dan "Lihat di Google Maps"
                         var popupContent = `
-                            <strong>Sumber Data:</strong> ${item.nama_sumber}<br>
-                            <strong>Kota/Kab:</strong> ${item.nama_kotakab || '-'}<br>
-                            <strong>Kecamatan:</strong> ${item.nama_kec || '-'}<br>
-                            <strong>Kelurahan:</strong> ${item.nama_kel || '-'}<br>
-                            <strong>Latitude:</strong> ${item.latitude}<br>
-                            <strong>Longitude:</strong> ${item.longitude}<br>
-                            <hr>
-                            <button class="btn btn-primary btn-sm" onclick="showDetailModal(${item.id_koordinat})">Detail</button>
-                        `;
+                        <strong>Sumber Data:</strong> ${item.nama_sumber}<br>
+                        <strong>Kota/Kab:</strong> ${item.nama_kotakab || '-'}<br>
+                        <strong>Kecamatan:</strong> ${item.nama_kec || '-'}<br>
+                        <strong>Kelurahan:</strong> ${item.nama_kel || '-'}<br>
+                        <strong>Latitude:</strong> ${item.latitude}<br>
+                        <strong>Longitude:</strong> ${item.longitude}<br>
+                        <hr>
+                        <button class="btn btn-primary btn-sm" onclick="showDetailModal(${item.id_koordinat})">Detail</button>
+                        <a href="https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}" target="_blank" class="btn btn-info btn-sm">Lihat di Google Maps</a>
+                    `;
 
                         marker.bindPopup(popupContent);
                         markers.addLayer(marker);
@@ -101,6 +102,7 @@
             })
             .catch(error => console.error('Error fetching data:', error));
     }
+
 
     // Fungsi untuk menampilkan modal dengan data detail
     function showDetailModal(idKoordinat) {
