@@ -1,0 +1,19 @@
+# Abaikan file environment lokal. Salin dari .env.example
+/.env
+
+# Abaikan folder dependensi dari Composer
+/vendor
+
+# Abaikan folder writable yang sering berubah dan spesifik untuk setiap developer
+/writable/cache/*
+/writable/debugbar/*
+/writable/logs/*
+!/writable/cache/.gitkeep
+!/writable/debugbar/.gitkeep
+!/writable/logs/.gitkeep
+
+# Abaikan file spesifik dari OS dan editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
