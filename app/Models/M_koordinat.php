@@ -29,13 +29,18 @@ class M_koordinat extends Model
     ];
     
     // Tambahkan metode ini untuk mengambil data koordinat
-    public function getDataKoordinat()
+    public function getDataKoordinatQuery()
     {
         return $this->select('koordinat.*, kecamatan.nama_kec, kelurahan.nama_kel, sumber_data.nama_sumber, sumber_data.warna, kota_kab.nama_kotakab')
             ->join('kecamatan', 'kecamatan.id_kec = koordinat.id_kec', 'left')
             ->join('kelurahan', 'kelurahan.id_kel = koordinat.id_kel', 'left')
             ->join('sumber_data', 'sumber_data.id_sumberdata = koordinat.id_sumberdata', 'left')
-            ->join('kota_kab', 'kota_kab.id_kotakab = koordinat.id_kotakab', 'left')
-            ->findAll();
+            ->join('kota_kab', 'kota_kab.id_kotakab = koordinat.id_kotakab', 'left');
+    }
+
+    // Metode lama diubah untuk menggunakan metode baru
+    public function getDataKoordinat()
+    {
+        return $this->getDataKoordinatQuery()->findAll();
     }
 }

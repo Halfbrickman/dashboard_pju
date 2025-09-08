@@ -39,8 +39,12 @@ $routes->group('api', function ($routes) {
     $routes->get('judul-keterangan/(:num)', 'MasterDataController::getJudulKeteranganBySumberData/$1');
 });
 
+// Rute untuk peta
 $routes->get('/maps', 'MapController::index');
 $routes->get('/api/markers', 'MapController::getMarkerData');
+$routes->get('map/exportKML', 'MapController::exportKML');
+$routes->get('map/exportExcel', 'MapController::exportExcel');
+$routes->get('map/exportPDF', 'MapController::exportPDF');
 
 // Rute untuk Auth
 $routes->get('/login', 'AuthController::login');

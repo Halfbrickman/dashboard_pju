@@ -17,6 +17,18 @@
                                     <?php endforeach; ?>
                                 </select>
                             </div>
+                            <div class="col-md-auto d-flex align-items-end">
+                                <div class="btn-group">
+                                    <button type="button" style="height: 40px; " class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-file-export"></i> Ekspor Data
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" id="exportKML" href="<?= base_url('map/exportKML'); ?>">Format KML</a></li>
+                                        <li><a class="dropdown-item" id="exportExcel" href="<?= base_url('map/exportExcel'); ?>">Format Excel (.xlsx)</a></li>
+                                        <li><a class="dropdown-item" id="exportPDF" href="<?= base_url('map/exportPDF'); ?>">Format PDF</a></li>
+                                    </ul>
+                                </div>
+                            </div>  
                         </div>
                         <div id="mapid" style="height: 600px;"></div>
                     </div>
@@ -223,6 +235,28 @@
     document.getElementById('filterSumberData').addEventListener('change', function() {
         var selectedId = this.value;
         loadMarkers(selectedId);
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+    const exportLinks = document.querySelectorAll('.dropdown-menu a');
+    const filterSelect = document.getElementById('filterSumberData');
+
+        exportLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault(); // Mencegah link langsung dieksekusi
+
+                const baseUrl = this.href;
+                const selectedSumberId = filterSelect.value;
+                let finalUrl = baseUrl;
+
+                // Jika ada filter yang dipilih, tambahkan sebagai parameter URL
+                if (selectedSumberId) {
+                    finalUrl += `?sumber_data_id=${selectedSumberId}`;
+                }
+
+                // Arahkan ke URL final untuk download
+                window.location.href = finalUrl;
+            });
+        });
     });
 
     loadMarkers();
