@@ -5,6 +5,12 @@ use CodeIgniter\Model;
 
 class M_Wilayah extends Model
 {
+
+    // Tambahkan properti $table dan $primaryKey
+    // Ini penting agar CodeIgniter dapat bekerja dengan benar.
+    protected $table = 'kota_kab'; 
+    protected $primaryKey = 'id_kotakab'; 
+    protected $returnType     = 'array';
     
     public function getKotaKab($where = false)
     {

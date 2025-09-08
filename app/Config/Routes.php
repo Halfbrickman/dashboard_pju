@@ -87,3 +87,7 @@ $routes->group('', ['filter' => 'admin'], function ($routes) {
     $routes->post('judul-keterangan/save', 'JudulKeterangan::save');
     $routes->post('judul-keterangan/delete/(:num)', 'JudulKeterangan::delete/$1');
 });
+$routes->group('api', function ($routes) {
+    $routes->post('markers/update/(:any)', 'Api\Koordinat::update/$1');
+});
+$routes->post('api/markers/update', 'MapController::updateMarker/$1');

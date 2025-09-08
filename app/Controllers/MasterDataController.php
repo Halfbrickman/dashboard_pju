@@ -94,9 +94,7 @@ class MasterDataController extends Controller
         $id_koordinat = $this->request->getPost('id_koordinat');
         
         $rules = [
-            'id_kotakab' => 'required',
-            'id_kec' => 'required',
-            'id_kel' => 'required',
+            
             'id_sumberdata' => 'required',
             'latitude' => 'required',
             'longitude' => 'required',
