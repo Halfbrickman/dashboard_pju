@@ -1,10 +1,11 @@
-<?php 
+<?php
+
 namespace App\Controllers;
 
 use App\Models\M_koordinat;
 use App\Models\M_sumberData;
 use App\Models\M_judulKeterangan;
-use App\Models\M_isiKeterangan; 
+use App\Models\M_isiKeterangan;
 use App\Models\M_Wilayah;
 use CodeIgniter\Controller;
 use Dompdf\Dompdf;
@@ -27,7 +28,7 @@ class MapController extends BaseController
         // Menginisialisasi model-model yang digunakan
         $this->koordinatModel = new M_koordinat();
         $this->sumberDataModel = new M_sumberData();
-        $this->wilayahModel = new M_Wilayah(); 
+        $this->wilayahModel = new M_Wilayah();
         $this->judulKeteranganModel = new M_judulKeterangan();
         $this->isiKeteranganModel = new M_isiKeterangan();
     }
@@ -43,14 +44,14 @@ class MapController extends BaseController
             'judul_keterangan' => $this->judulKeteranganModel->findAll(),
             'title' => 'Peta Data'
         ];
-        
+
         // Kirim data ke view
         return view('Template/header', $data)
-             . view('Template/sidebar')
-             . view('maps/maps', $data)
-             . view('Template/footer');
+            . view('Template/sidebar')
+            . view('maps/maps', $data)
+            . view('Template/footer');
     }
-    
+
     public function getMarkerData()
     {
         $request = \Config\Services::request();
@@ -87,7 +88,7 @@ class MapController extends BaseController
 
         return $this->response->setJSON($dataKoordinat);
     }
-    
+
     public function updateMarker()
     {
         $id = $this->request->getVar('id_koordinat');
@@ -100,13 +101,44 @@ class MapController extends BaseController
             'longitude' => $this->request->getVar('longitude'),
         ];
 
+        $keteranganData = $this->request->getVar('keterangan');
+
         if (empty($id) || empty($data['latitude']) || empty($data['longitude'])) {
             return $this->response->setJSON(['status' => 'error', 'message' => 'Data tidak lengkap.']);
         }
-        
-        if ($this->koordinatModel->update($id, $data)) {
+
+        // Mulai transaksi untuk memastikan kedua update berhasil
+        $this->koordinatModel->db->transBegin();
+
+        // Update data di tabel koordinat
+        $updateKoordinat = $this->koordinatModel->update($id, $data);
+
+        $updateKeterangan = true;
+        if ($keteranganData) {
+            // Hapus keterangan lama untuk ID koordinat ini
+            $this->isiKeteranganModel->where('id_koordinat', $id)->delete();
+
+            // Simpan keterangan baru
+            foreach ($keteranganData as $idJdlKeterangan => $isiKeterangan) {
+                if (!empty($isiKeterangan)) { // Hanya simpan jika isinya tidak kosong
+                    $dataKeterangan = [
+                        'id_koordinat' => $id,
+                        'id_jdlketerangan' => $idJdlKeterangan,
+                        'isi_keterangan' => $isiKeterangan,
+                    ];
+                    if (!$this->isiKeteranganModel->insert($dataKeterangan)) {
+                        $updateKeterangan = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if ($updateKoordinat && $updateKeterangan) {
+            $this->koordinatModel->db->transCommit();
             return $this->response->setJSON(['status' => 'success', 'message' => 'Data berhasil diperbarui.']);
         } else {
+            $this->koordinatModel->db->transRollback();
             return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal memperbarui data.']);
         }
     }
