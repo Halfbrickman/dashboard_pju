@@ -8,7 +8,7 @@
                 <div class="card">
                     <div class="card-body">
                         <div class="row mb-3">
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <label for="filterSumberData" class="form-label">Filter Sumber Data:</label>
                                 <select class="form-select" id="filterSumberData">
                                     <option value="">Semua Sumber Data</option>
@@ -17,7 +17,33 @@
                                     <?php endforeach; ?>
                                 </select>
                             </div>
-                            <div class="col-md-auto d-flex align-items-end">
+
+                            <div class="col-md-6" id="filterWilayahDiv">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <label for="filterKota" class="form-label">Kota/Kabupaten:</label>
+                                        <select class="form-select" id="filterKota">
+                                            <option value="">Semua Kota/Kab</option>
+                                            <?php foreach ($kotakab as $kota) : ?>
+                                                <option value="<?= $kota['id_kotakab']; ?>"><?= $kota['nama_kotakab']; ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="filterKecamatan" class="form-label">Kecamatan:</label>
+                                        <select class="form-select" id="filterKecamatan" disabled>
+                                            <option value="">Semua Kecamatan</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="filterKelurahan" class="form-label">Kelurahan:</label>
+                                        <select class="form-select" id="filterKelurahan" disabled>
+                                            <option value="">Semua Kelurahan</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end justify-content-end">
                                 <div class="btn-group">
                                     <button type="button" style="height: 40px; " class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                                         <i class="fas fa-file-export"></i> Ekspor Data
@@ -95,8 +121,8 @@
     // Data dari PHP sekarang tersedia di JavaScript
     const allSumberData = <?= json_encode($sumber_data); ?>;
     const allKotaKab = <?= json_encode($kotakab); ?>;
-    const allKecamatan = <?= json_encode($kecamatan); ?>;
-    const allKelurahan = <?= json_encode($kelurahan); ?>;
+    let allKecamatan = [];
+    let allKelurahan = [];
 
     var map = L.map('mapid').setView([-6.2088, 106.8456], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -143,13 +169,23 @@
         return popupContent;
     }
 
-    function loadMarkers(sumberId = '') {
+    function loadMarkers() {
         markers.clearLayers();
         map.removeLayer(markers);
         allMarkersData = [];
         markerLayers = {};
 
-        fetch(`<?= base_url('api/markers'); ?>?sumber_data_id=${sumberId}`)
+        const sumberId = document.getElementById('filterSumberData').value;
+        const idKotakab = document.getElementById('filterKota').value;
+        const idKec = document.getElementById('filterKecamatan').value;
+        const idKel = document.getElementById('filterKelurahan').value;
+
+        let url = `<?= base_url('api/markers'); ?>?sumber_data_id=${sumberId}`;
+        if (idKotakab) url += `&id_kotakab=${idKotakab}`;
+        if (idKec) url += `&id_kec=${idKec}`;
+        if (idKel) url += `&id_kel=${idKel}`;
+
+        fetch(url)
             .then(response => response.json())
             .then(data => {
                 allMarkersData = data;
@@ -182,7 +218,6 @@
         document.getElementById('edit_latitude').value = item.latitude;
         document.getElementById('edit_longitude').value = item.longitude;
 
-        // ... (kode untuk mengisi dropdown Sumber Data, Kota/Kab, dll. tetap sama) ...
         const editSumberDataSelect = document.getElementById('edit_sumberdata');
         editSumberDataSelect.innerHTML = '<option value="">Pilih Sumber Data</option>';
         allSumberData.forEach(sumber => {
@@ -209,12 +244,10 @@
 
         populateKecamatan(item.id_kotakab, item.id_kec);
         populateKelurahan(item.id_kec, item.id_kel);
-
-        // BARU: Menambahkan field untuk keterangan tambahan
+        
         const additionalDetailsContainer = document.getElementById('additional-details-container');
         additionalDetailsContainer.innerHTML = '';
 
-        // Filter judul keterangan berdasarkan sumber data yang dipilih
         const filteredJudul = allJudulKeterangan.filter(j => j.id_sumberdata == item.id_sumberdata);
 
         if (filteredJudul.length > 0) {
@@ -234,7 +267,6 @@
             additionalDetailsContainer.innerHTML = `<p class="text-muted">Tidak ada keterangan tambahan untuk sumber data ini.</p>`;
         }
 
-        // Tampilkan modal
         var editModal = new bootstrap.Modal(document.getElementById('editModal'));
         editModal.show();
     }
@@ -245,16 +277,20 @@
         editKecamatanSelect.disabled = !selectedKotaKabId;
 
         if (selectedKotaKabId) {
-            const filteredKecamatan = allKecamatan.filter(kec => kec.id_kotakab == selectedKotaKabId);
-            filteredKecamatan.forEach(kecamatan => {
-                const newOption = document.createElement('option');
-                newOption.value = kecamatan.id_kec;
-                newOption.textContent = kecamatan.nama_kec;
-                if (kecamatan.id_kec == selectedKecamatanId) {
-                    newOption.selected = true;
-                }
-                editKecamatanSelect.appendChild(newOption);
-            });
+            fetch(`<?= base_url('api/kecamatan_by_kotakab'); ?>?id_kotakab=${selectedKotaKabId}`)
+                .then(response => response.json())
+                .then(data => {
+                    allKecamatan = data; // Simpan data ke variabel global
+                    allKecamatan.forEach(kecamatan => {
+                        const newOption = document.createElement('option');
+                        newOption.value = kecamatan.id_kec;
+                        newOption.textContent = kecamatan.nama_kec;
+                        if (kecamatan.id_kec == selectedKecamatanId) {
+                            newOption.selected = true;
+                        }
+                        editKecamatanSelect.appendChild(newOption);
+                    });
+                });
         }
     }
 
@@ -264,16 +300,20 @@
         editKelurahanSelect.disabled = !selectedKecamatanId;
 
         if (selectedKecamatanId) {
-            const filteredKelurahan = allKelurahan.filter(kel => kel.id_kec == selectedKecamatanId);
-            filteredKelurahan.forEach(kelurahan => {
-                const newOption = document.createElement('option');
-                newOption.value = kelurahan.id_kel;
-                newOption.textContent = kelurahan.nama_kel;
-                if (kelurahan.id_kel == selectedKelurahanId) {
-                    newOption.selected = true;
-                }
-                editKelurahanSelect.appendChild(newOption);
-            });
+            fetch(`<?= base_url('api/kelurahan_by_kecamatan'); ?>?id_kec=${selectedKecamatanId}`)
+                .then(response => response.json())
+                .then(data => {
+                    allKelurahan = data; // Simpan data ke variabel global
+                    allKelurahan.forEach(kelurahan => {
+                        const newOption = document.createElement('option');
+                        newOption.value = kelurahan.id_kel;
+                        newOption.textContent = kelurahan.nama_kel;
+                        if (kelurahan.id_kel == selectedKelurahanId) {
+                            newOption.selected = true;
+                        }
+                        editKelurahanSelect.appendChild(newOption);
+                    });
+                });
         }
     }
 
@@ -286,12 +326,8 @@
         populateKelurahan(this.value);
     });
 
-
-    // Fungsi untuk menyimpan perubahan ke database via AJAX (diambil dari modal)
     document.getElementById('saveEditButton').addEventListener('click', function() {
         const id = document.getElementById('edit_id_koordinat').value;
-
-        // Mengumpulkan data keterangan tambahan dari form
         const keteranganData = {};
         document.querySelectorAll('#additional-details-container input').forEach(input => {
             const idJdlKeterangan = input.name.match(/\[(\d+)\]/)[1];
@@ -306,7 +342,7 @@
             id_kel: document.getElementById('edit_kelurahan').value,
             latitude: document.getElementById('edit_latitude').value,
             longitude: document.getElementById('edit_longitude').value,
-            keterangan: keteranganData // Tambahkan data keterangan
+            keterangan: keteranganData
         };
 
         fetch(`<?= base_url('api/markers/update'); ?>`, {
@@ -317,14 +353,13 @@
                 },
                 body: JSON.stringify(updatedData)
             })
-            // ... (sisanya tetap sama) ...
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
                     Swal.fire('Berhasil!', 'Data berhasil diperbarui.', 'success');
                     var editModal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
                     editModal.hide();
-                    loadMarkers(document.getElementById('filterSumberData').value);
+                    loadMarkers();
                 } else {
                     Swal.fire('Gagal!', 'Terjadi kesalahan saat menyimpan data.', 'error');
                 }
@@ -367,7 +402,7 @@
                             'Data telah berhasil dihapus.',
                             'success'
                         ).then(() => {
-                            loadMarkers(document.getElementById('filterSumberData').value);
+                            loadMarkers();
                         });
                     })
                     .catch(error => {
@@ -382,35 +417,91 @@
         });
     }
 
-    const filterSelect = document.getElementById('filterSumberData');
-    if (filterSelect) {
-        filterSelect.addEventListener('change', function() {
-            var selectedId = this.value;
-            loadMarkers(selectedId);
+    const filterSumberData = document.getElementById('filterSumberData');
+    const filterKota = document.getElementById('filterKota');
+    const filterKecamatan = document.getElementById('filterKecamatan');
+    const filterKelurahan = document.getElementById('filterKelurahan');
+
+    // Fungsi untuk mengisi ulang dropdown
+    function populateSelect(selectElement, data, placeholder, valueKey, textKey) {
+        selectElement.innerHTML = `<option value="">${placeholder}</option>`;
+        data.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item[valueKey];
+            option.textContent = item[textKey];
+            selectElement.appendChild(option);
         });
     }
+
+    filterSumberData.addEventListener('change', loadMarkers);
+    filterKota.addEventListener('change', function() {
+        const idKotakab = this.value;
+        filterKecamatan.value = '';
+        populateSelect(filterKelurahan, [], 'Semua Kelurahan', 'id_kel', 'nama_kel');
+        filterKecamatan.disabled = true;
+        filterKelurahan.disabled = true;
+
+        if (idKotakab) {
+            fetch(`<?= base_url('api/kecamatan_by_kotakab'); ?>?id_kotakab=${idKotakab}`)
+                .then(response => response.json())
+                .then(data => {
+                    populateSelect(filterKecamatan, data, 'Semua Kecamatan', 'id_kec', 'nama_kec');
+                    filterKecamatan.disabled = false;
+                })
+                .catch(error => console.error('Error fetching kecamatan:', error));
+        }
+
+        loadMarkers();
+    });
+
+    filterKecamatan.addEventListener('change', function() {
+        const idKec = this.value;
+        filterKelurahan.value = '';
+        filterKelurahan.disabled = true;
+        
+        if (idKec) {
+            fetch(`<?= base_url('api/kelurahan_by_kecamatan'); ?>?id_kec=${idKec}`)
+                .then(response => response.json())
+                .then(data => {
+                    populateSelect(filterKelurahan, data, 'Semua Kelurahan', 'id_kel', 'nama_kel');
+                    filterKelurahan.disabled = false;
+                })
+                .catch(error => console.error('Error fetching kelurahan:', error));
+        }
+
+        loadMarkers();
+    });
+
+    filterKelurahan.addEventListener('change', loadMarkers);
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const exportLinks = document.querySelectorAll('.dropdown-menu a');
+
+        exportLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                const baseUrl = this.href;
+                const params = new URLSearchParams();
+                const selectedSumberId = filterSumberData.value;
+                const selectedKotakab = filterKota.value;
+                const selectedKec = filterKecamatan.value;
+                const selectedKel = filterKelurahan.value;
+                
+                if (selectedSumberId) params.append('sumber_data_id', selectedSumberId);
+                if (selectedKotakab) params.append('id_kotakab', selectedKotakab);
+                if (selectedKec) params.append('id_kec', selectedKec);
+                if (selectedKel) params.append('id_kel', selectedKel);
+                
+                let finalUrl = baseUrl;
+                if (params.toString()) {
+                    finalUrl += '?' + params.toString();
+                }
+
+                window.location.href = finalUrl;
+            });
+        });
+    });
 
     loadMarkers();
-
-    // --- TEMPAT KODE ANDA YANG LAIN DI SINI ---
-    const ctx = document.getElementById('myChart');
-    if (ctx) {
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                /* ... */
-            },
-            options: {
-                /* ... */
-            }
-        });
-    }
-
-    const datePicker = document.getElementById('myDatePicker');
-    if (datePicker) {
-        flatpickr(datePicker, {
-            enableTime: true,
-            dateFormat: "Y-m-d H:i",
-        });
-    }
 </script>

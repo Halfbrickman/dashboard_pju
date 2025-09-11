@@ -8,12 +8,15 @@ use App\Models\M_judulKeterangan;
 use App\Models\M_isiKeterangan;
 use App\Models\M_Wilayah;
 use CodeIgniter\Controller;
+use CodeIgniter\API\ResponseTrait;
 use Dompdf\Dompdf;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class MapController extends BaseController
 {
+    use ResponseTrait;
+
     protected $koordinatModel;
     protected $sumberDataModel;
     protected $wilayahModel;
@@ -38,9 +41,9 @@ class MapController extends BaseController
         // Ambil data dari model dan siapkan untuk view
         $data = [
             'sumber_data' => $this->sumberDataModel->findAll(),
-            'kotakab' => $this->wilayahModel->getKotaKab(), // Perbaikan: getKotaKab()
-            'kecamatan' => $this->wilayahModel->getKecamatan(), // Perbaikan: getKecamatan()
-            'kelurahan' => $this->wilayahModel->getKelurahan(), // Perbaikan: getKelurahan()
+            'kotakab' => $this->wilayahModel->getKotaKab(),
+            'kecamatan' => $this->wilayahModel->getKecamatan(),
+            'kelurahan' => $this->wilayahModel->getKelurahan(),
             'judul_keterangan' => $this->judulKeteranganModel->findAll(),
             'title' => 'Peta Data'
         ];
@@ -57,6 +60,9 @@ class MapController extends BaseController
         $request = \Config\Services::request();
         $sumber_id = $request->getGet('sumber_data_id');
         $koordinat_id = $request->getGet('id_koordinat');
+        $id_kotakab = $request->getGet('id_kotakab');
+        $id_kec = $request->getGet('id_kec');
+        $id_kel = $request->getGet('id_kel');
 
         if ($koordinat_id) {
             $dataKoordinat = $this->koordinatModel->select('koordinat.*, kecamatan.nama_kec, kelurahan.nama_kel, sumber_data.nama_sumber, sumber_data.warna, kota_kab.nama_kotakab')
@@ -66,27 +72,55 @@ class MapController extends BaseController
                 ->join('kota_kab', 'kota_kab.id_kotakab = koordinat.id_kotakab', 'left')
                 ->where('koordinat.id_koordinat', $koordinat_id)
                 ->findAll();
-        } elseif ($sumber_id) {
-            $dataKoordinat = $this->koordinatModel->select('koordinat.*, kecamatan.nama_kec, kelurahan.nama_kel, sumber_data.nama_sumber, sumber_data.warna, kota_kab.nama_kotakab')
-                ->join('kecamatan', 'kecamatan.id_kec = koordinat.id_kec', 'left')
-                ->join('kelurahan', 'kelurahan.id_kel = koordinat.id_kel', 'left')
-                ->join('sumber_data', 'sumber_data.id_sumberdata = koordinat.id_sumberdata', 'left')
-                ->join('kota_kab', 'kota_kab.id_kotakab = koordinat.id_kotakab', 'left')
-                ->where('koordinat.id_sumberdata', $sumber_id)
-                ->findAll();
         } else {
-            $dataKoordinat = $this->koordinatModel->getDataKoordinat();
+            $dataKoordinat = $this->koordinatModel->getFilteredMarkers($sumber_id, $id_kotakab, $id_kec, $id_kel);
+        }
+
+        if (empty($dataKoordinat)) {
+            return $this->response->setJSON([]);
+        }
+
+        $koordinatIds = array_column($dataKoordinat, 'id_koordinat');
+        
+        $allKeterangan = $this->isiKeteranganModel
+            ->select('isi_keterangan.isi_keterangan, judul_keterangan.jdl_keterangan, isi_keterangan.id_koordinat')
+            ->join('judul_keterangan', 'judul_keterangan.id_jdlketerangan = isi_keterangan.id_jdlketerangan')
+            ->whereIn('isi_keterangan.id_koordinat', $koordinatIds)
+            ->findAll();
+
+        $keteranganGrouped = [];
+        foreach ($allKeterangan as $keterangan) {
+            $keteranganGrouped[$keterangan['id_koordinat']][] = [
+                'isi_keterangan' => $keterangan['isi_keterangan'],
+                'jdl_keterangan' => $keterangan['jdl_keterangan']
+            ];
         }
 
         foreach ($dataKoordinat as &$koordinat) {
-            $koordinat['keterangan'] = $this->isiKeteranganModel
-                ->select('isi_keterangan.isi_keterangan, judul_keterangan.jdl_keterangan')
-                ->join('judul_keterangan', 'judul_keterangan.id_jdlketerangan = isi_keterangan.id_jdlketerangan')
-                ->where('isi_keterangan.id_koordinat', $koordinat['id_koordinat'])
-                ->findAll();
+            $koordinat['keterangan'] = $keteranganGrouped[$koordinat['id_koordinat']] ?? [];
         }
 
         return $this->response->setJSON($dataKoordinat);
+    }
+
+    public function getKecamatan()
+    {
+        $idKotakab = $this->request->getGet('id_kotakab');
+        if ($idKotakab) {
+            $kecamatan = $this->wilayahModel->getKecamatanByKotakabId($idKotakab);
+            return $this->respond($kecamatan);
+        }
+        return $this->fail('Parameter id_kotakab tidak ditemukan', 400);
+    }
+
+    public function getKelurahan()
+    {
+        $idKec = $this->request->getGet('id_kec');
+        if ($idKec) {
+            $kelurahan = $this->wilayahModel->getKelurahanByKecId($idKec);
+            return $this->respond($kelurahan);
+        }
+        return $this->fail('Parameter id_kecamatan tidak ditemukan', 400);
     }
 
     public function updateMarker()
@@ -152,18 +186,30 @@ class MapController extends BaseController
         }
     }
 
-    // Metode exportKML, exportExcel, dan exportPDF
-    // ...
     public function exportKML()
     {
         $sumber_id = $this->request->getGet('sumber_data_id');
-        $builder = $this->koordinatModel->select('koordinat.*, sumber_data.nama_sumber, isi_keterangan.isi_keterangan')
+        $id_kotakab = $this->request->getGet('id_kotakab');
+        $id_kec = $this->request->getGet('id_kec');
+        $id_kel = $this->request->getGet('id_kel');
+        
+        $builder = $this->koordinatModel->select('koordinat.*, sumber_data.nama_sumber, isi_keterangan.isi_keterangan, isi_keterangan.id_koordinat')
             ->join('sumber_data', 'sumber_data.id_sumberdata = koordinat.id_sumberdata', 'left')
             ->join('isi_keterangan', 'isi_keterangan.id_koordinat = koordinat.id_koordinat', 'left');
 
         if ($sumber_id) {
             $builder->where('koordinat.id_sumberdata', $sumber_id);
         }
+        if ($id_kotakab) {
+            $builder->where('koordinat.id_kotakab', $id_kotakab);
+        }
+        if ($id_kec) {
+            $builder->where('koordinat.id_kec', $id_kec);
+        }
+        if ($id_kel) {
+            $builder->where('koordinat.id_kel', $id_kel);
+        }
+        
         $koordinatData = $builder->findAll();
 
         $kmlContent = '<?xml version="1.0" encoding="UTF-8"?>';
@@ -195,9 +241,22 @@ class MapController extends BaseController
         ini_set('max_execution_time', 300);
 
         $sumber_id = $this->request->getGet('sumber_data_id');
+        $id_kotakab = $this->request->getGet('id_kotakab');
+        $id_kec = $this->request->getGet('id_kec');
+        $id_kel = $this->request->getGet('id_kel');
+
         $koordinatBuilder = $this->koordinatModel->getDataKoordinatQuery();
         if ($sumber_id) {
             $koordinatBuilder->where('koordinat.id_sumberdata', $sumber_id);
+        }
+        if ($id_kotakab) {
+            $koordinatBuilder->where('koordinat.id_kotakab', $id_kotakab);
+        }
+        if ($id_kec) {
+            $koordinatBuilder->where('koordinat.id_kec', $id_kec);
+        }
+        if ($id_kel) {
+            $koordinatBuilder->where('koordinat.id_kel', $id_kel);
         }
         $koordinatData = $koordinatBuilder->findAll();
 
@@ -206,22 +265,29 @@ class MapController extends BaseController
         }
 
         $uniqueSumberIds = array_unique(array_column($koordinatData, 'id_sumberdata'));
+        
+        $uniqueKoordIds = array_column($koordinatData, 'id_koordinat');
+        $allKeterangan = $this->isiKeteranganModel
+            ->select('isi_keterangan.isi_keterangan, judul_keterangan.jdl_keterangan, isi_keterangan.id_koordinat')
+            ->join('judul_keterangan', 'judul_keterangan.id_jdlketerangan = isi_keterangan.id_jdlketerangan')
+            ->whereIn('isi_keterangan.id_koordinat', $uniqueKoordIds)
+            ->findAll();
+
+        $keteranganGrouped = [];
+        foreach ($allKeterangan as $keterangan) {
+            $keteranganGrouped[$keterangan['id_koordinat']][$keterangan['jdl_keterangan']] = $keterangan['isi_keterangan'];
+        }
+
         $allJudulKeterangan = $this->judulKeteranganModel
             ->whereIn('id_sumberdata', $uniqueSumberIds)
             ->orderBy('id_jdlketerangan', 'ASC')
             ->findAll();
         $dynamicHeaders = array_column($allJudulKeterangan, 'jdl_keterangan');
-
+        
         $processedData = [];
         foreach ($koordinatData as $koordinat) {
-            $keteranganItems = $this->isiKeteranganModel
-                ->select('isi_keterangan.isi_keterangan, judul_keterangan.jdl_keterangan')
-                ->join('judul_keterangan', 'judul_keterangan.id_jdlketerangan = isi_keterangan.id_jdlketerangan')
-                ->where('isi_keterangan.id_koordinat', $koordinat['id_koordinat'])
-                ->findAll();
-
-            $keteranganMap = array_column($keteranganItems, 'isi_keterangan', 'jdl_keterangan');
             $rowData = $koordinat;
+            $keteranganMap = $keteranganGrouped[$koordinat['id_koordinat']] ?? [];
             foreach ($dynamicHeaders as $header) {
                 $rowData[$header] = $keteranganMap[$header] ?? 'N/A';
             }
@@ -266,17 +332,50 @@ class MapController extends BaseController
 
     public function exportPDF()
     {
+        ini_set('memory_limit', '2048M');
         ini_set('max_execution_time', 300);
 
         $sumber_id = $this->request->getGet('sumber_data_id');
-        $koordinatBuilder = $this->koordinatModel->getDataKoordinatQuery();
+        $id_kotakab = $this->request->getGet('id_kotakab');
+        $id_kec = $this->request->getGet('id_kec');
+        $id_kel = $this->request->getGet('id_kel');
+
+        $koordinatBuilder = $this->koordinatModel
+            ->select('koordinat.*, sumber_data.nama_sumber, kota_kab.nama_kotakab, kecamatan.nama_kec, kelurahan.nama_kel')
+            ->join('sumber_data', 'sumber_data.id_sumberdata = koordinat.id_sumberdata', 'left')
+            ->join('kota_kab', 'kota_kab.id_kotakab = koordinat.id_kotakab', 'left')
+            ->join('kecamatan', 'kecamatan.id_kec = koordinat.id_kec', 'left')
+            ->join('kelurahan', 'kelurahan.id_kel = koordinat.id_kel', 'left');
+
         if ($sumber_id) {
             $koordinatBuilder->where('koordinat.id_sumberdata', $sumber_id);
         }
+        if ($id_kotakab) {
+            $koordinatBuilder->where('koordinat.id_kotakab', $id_kotakab);
+        }
+        if ($id_kec) {
+            $koordinatBuilder->where('koordinat.id_kec', $id_kec);
+        }
+        if ($id_kel) {
+            $koordinatBuilder->where('koordinat.id_kel', $id_kel);
+        }
+
         $koordinatData = $koordinatBuilder->findAll();
 
         if (empty($koordinatData)) {
             return redirect()->back()->with('error', 'Tidak ada data untuk diekspor.');
+        }
+
+        $uniqueKoordIds = array_column($koordinatData, 'id_koordinat');
+        $allKeterangan = $this->isiKeteranganModel
+            ->select('isi_keterangan.isi_keterangan, judul_keterangan.jdl_keterangan, isi_keterangan.id_koordinat')
+            ->join('judul_keterangan', 'judul_keterangan.id_jdlketerangan = isi_keterangan.id_jdlketerangan')
+            ->whereIn('isi_keterangan.id_koordinat', $uniqueKoordIds)
+            ->findAll();
+
+        $keteranganGrouped = [];
+        foreach ($allKeterangan as $keterangan) {
+            $keteranganGrouped[$keterangan['id_koordinat']][$keterangan['jdl_keterangan']] = $keterangan['isi_keterangan'];
         }
 
         $uniqueSumberIds = array_unique(array_column($koordinatData, 'id_sumberdata'));
@@ -288,14 +387,8 @@ class MapController extends BaseController
 
         $processedData = [];
         foreach ($koordinatData as $koordinat) {
-            $keteranganItems = $this->isiKeteranganModel
-                ->select('isi_keterangan.isi_keterangan, judul_keterangan.jdl_keterangan')
-                ->join('judul_keterangan', 'judul_keterangan.id_jdlketerangan = isi_keterangan.id_jdlketerangan')
-                ->where('isi_keterangan.id_koordinat', $koordinat['id_koordinat'])
-                ->findAll();
-
-            $keteranganMap = array_column($keteranganItems, 'isi_keterangan', 'jdl_keterangan');
             $rowData = $koordinat;
+            $keteranganMap = $keteranganGrouped[$koordinat['id_koordinat']] ?? [];
             foreach ($data['dynamicHeaders'] as $header) {
                 $rowData[$header] = $keteranganMap[$header] ?? 'N/A';
             }

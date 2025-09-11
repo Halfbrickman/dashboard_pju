@@ -91,3 +91,6 @@ $routes->group('api', function ($routes) {
     $routes->post('markers/update/(:any)', 'Api\Koordinat::update/$1');
 });
 $routes->post('api/markers/update', 'MapController::updateMarker/$1');
+
+$routes->get('api/kecamatan_by_kotakab', 'MapController::getKecamatan');
+$routes->get('api/kelurahan_by_kecamatan', 'MapController::getKelurahan');

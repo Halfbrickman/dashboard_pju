@@ -38,5 +38,18 @@ class M_Wilayah extends Model
         }
         return $builder->get()->getResultArray();
     }
+    public function getKecamatanByKotakabId($idKotakab)
+    {
+        $builder = $this->db->table('kecamatan');
+        $builder->where('id_kotakab', $idKotakab);
+        return $builder->get()->getResultArray();
+    }
+
+    public function getKelurahanByKecId($idKec)
+    {
+        $builder = $this->db->table('kelurahan');
+        $builder->where('id_kec', $idKec);
+        return $builder->get()->getResultArray();
+    }
 }
 ?>
