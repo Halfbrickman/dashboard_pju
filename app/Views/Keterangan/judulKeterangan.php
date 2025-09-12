@@ -54,3 +54,47 @@
         <?php endforeach; ?>
     </div>
 </main>
+
+<!-- Tambahkan SweetAlert2 CDN di bagian akhir file, sebelum </body> -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- Script untuk menangani form delete dengan SweetAlert -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const deleteForms = document.querySelectorAll('.delete-form');
+
+        deleteForms.forEach(form => {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault(); // Mencegah form untuk langsung di-submit
+
+                Swal.fire({
+                    title: 'Apakah Anda yakin?',
+                    text: "Anda tidak akan bisa mengembalikan data ini!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Ya, hapus!',
+                    cancelButtonText: 'Batal'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Jika user mengkonfirmasi, submit form secara manual
+                        this.submit();
+                    }
+                });
+            });
+        });
+    });
+
+    // Menampilkan pesan SweetAlert dari flashdata setelah halaman dimuat ulang
+    const flashdata = <?php echo json_encode(session()->getFlashdata('pesan_swal')); ?>;
+    if (flashdata) {
+        Swal.fire({
+            icon: 'success',
+            title: 'Berhasil!',
+            text: flashdata,
+            timer: 3000, // Menutup otomatis setelah 3 detik
+            showConfirmButton: false
+        });
+    }
+</script>

@@ -1,11 +1,11 @@
 <main class="content">
     <div class="container-fluid p-0">
         <div class="d-flex justify-content-between align-items-center">
-            <h1 class="h3 mb-3">Master Data</h1>
+            <h1 class="h3 mb-3 fw-bold">Master Data Koordinat</h1>
             <?php if (session()->get('role_id') == 1) : ?>
-                <a href="/koordinat/form" class="btn btn-primary btn-sm ml-2">
-                    <i class="fas fa-plus"></i> Tambah Data
-                </a>
+                <div class="ms-auto card-tools">
+                    <a href="/koordinat/form" class="btn btn-primary btn-md fw-bold">Tambah Data</a>
+                </div>
             <?php endif; ?>
         </div>
 

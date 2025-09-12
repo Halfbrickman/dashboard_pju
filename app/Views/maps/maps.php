@@ -9,7 +9,6 @@
                     <div class="card-body">
                         <div class="row mb-3">
                             <div class="col-md-3">
-                                <label for="filterSumberData" class="form-label">Filter Sumber Data:</label>
                                 <select class="form-select" id="filterSumberData">
                                     <option value="">Semua Sumber Data</option>
                                     <?php foreach ($sumber_data as $sumber) : ?>
@@ -21,7 +20,6 @@
                             <div class="col-md-6" id="filterWilayahDiv">
                                 <div class="row">
                                     <div class="col-md-4">
-                                        <label for="filterKota" class="form-label">Kota/Kabupaten:</label>
                                         <select class="form-select" id="filterKota">
                                             <option value="">Semua Kota/Kab</option>
                                             <?php foreach ($kotakab as $kota) : ?>
@@ -30,13 +28,11 @@
                                         </select>
                                     </div>
                                     <div class="col-md-4">
-                                        <label for="filterKecamatan" class="form-label">Kecamatan:</label>
                                         <select class="form-select" id="filterKecamatan" disabled>
                                             <option value="">Semua Kecamatan</option>
                                         </select>
                                     </div>
                                     <div class="col-md-4">
-                                        <label for="filterKelurahan" class="form-label">Kelurahan:</label>
                                         <select class="form-select" id="filterKelurahan" disabled>
                                             <option value="">Semua Kelurahan</option>
                                         </select>
@@ -77,7 +73,8 @@
                     <input type="hidden" id="edit_id_koordinat">
                     <div class="mb-3">
                         <label for="edit_sumberdata" class="form-label">Sumber Data:</label>
-                        <select id="edit_sumberdata" class="form-select"></select>
+                        <select id="edit_sumberdata" class="form-select" disabled></select>
+                        <input type="hidden" id="edit_sumberdata_hidden" name="id_sumberdata">
                     </div>
                     <div class="mb-3">
                         <label for="edit_kotakab" class="form-label">Kota/Kab:</label>
