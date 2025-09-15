@@ -40,15 +40,21 @@
                                 </div>
                             </div>
                             <div class="col-md-3 d-flex align-items-end justify-content-end">
-                                <div class="btn-group">
-                                    <button type="button" style="height: 40px; " class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                        <i class="fas fa-file-export"></i> Ekspor Data
-                                    </button>
-                                    <ul class="dropdown-menu">
-                                        <li><a class="dropdown-item" id="exportKML" href="<?= base_url('map/exportKML'); ?>">Format KML</a></li>
-                                        <li><a class="dropdown-item" id="exportExcel" href="<?= base_url('map/exportExcel'); ?>">Format Excel (.xlsx)</a></li>
-                                        <li><a class="dropdown-item" id="exportPDF" href="<?= base_url('map/exportPDF'); ?>">Format PDF</a></li>
-                                    </ul>
+                                <div class="d-flex gap-2">
+                                    <a href="<?= base_url('koordinat/import'); ?>" class="btn btn-primary" style="height: 40px;">
+                                        <i class="fas fa-file-import"></i> Impor Data
+                                    </a>
+
+                                    <div class="btn-group">
+                                        <button type="button" style="height: 40px; " class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="fas fa-file-export"></i> Ekspor Data
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" id="exportKML" href="<?= base_url('map/exportKML'); ?>">Format KML</a></li>
+                                            <li><a class="dropdown-item" id="exportExcel" href="<?= base_url('map/exportExcel'); ?>">Format Excel (.xlsx)</a></li>
+                                            <li><a class="dropdown-item" id="exportPDF" href="<?= base_url('map/exportPDF'); ?>">Format PDF</a></li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -241,7 +247,7 @@
 
         populateKecamatan(item.id_kotakab, item.id_kec);
         populateKelurahan(item.id_kec, item.id_kel);
-        
+
         const additionalDetailsContainer = document.getElementById('additional-details-container');
         additionalDetailsContainer.innerHTML = '';
 
@@ -455,7 +461,7 @@
         const idKec = this.value;
         filterKelurahan.value = '';
         filterKelurahan.disabled = true;
-        
+
         if (idKec) {
             fetch(`<?= base_url('api/kelurahan_by_kecamatan'); ?>?id_kec=${idKec}`)
                 .then(response => response.json())
@@ -484,12 +490,12 @@
                 const selectedKotakab = filterKota.value;
                 const selectedKec = filterKecamatan.value;
                 const selectedKel = filterKelurahan.value;
-                
+
                 if (selectedSumberId) params.append('sumber_data_id', selectedSumberId);
                 if (selectedKotakab) params.append('id_kotakab', selectedKotakab);
                 if (selectedKec) params.append('id_kec', selectedKec);
                 if (selectedKel) params.append('id_kel', selectedKel);
-                
+
                 let finalUrl = baseUrl;
                 if (params.toString()) {
                     finalUrl += '?' + params.toString();

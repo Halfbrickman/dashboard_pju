@@ -31,6 +31,8 @@ $routes->get('koordinat/form', 'MasterDataController::form'); // Rute untuk form
 $routes->get('koordinat/form/(:num)', 'MasterDataController::form/$1'); // Rute untuk form edit
 $routes->post('koordinat/save', 'MasterDataController::save');
 $routes->post('koordinat/delete/(:num)', 'MasterDataController::delete/$1');
+$routes->get('koordinat/import', 'KoordinatController::import');
+$routes->post('koordinat/upload', 'KoordinatController::upload');
 
 // Rute API untuk dropdown dinamis
 $routes->group('api', function ($routes) {
