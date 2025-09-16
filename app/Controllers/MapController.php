@@ -7,6 +7,7 @@ use App\Models\M_sumberData;
 use App\Models\M_judulKeterangan;
 use App\Models\M_isiKeterangan;
 use App\Models\M_Wilayah;
+use App\Models\M_photo;
 use CodeIgniter\Controller;
 use CodeIgniter\API\ResponseTrait;
 use Dompdf\Dompdf;
@@ -22,6 +23,7 @@ class MapController extends BaseController
     protected $wilayahModel;
     protected $judulKeteranganModel;
     protected $isiKeteranganModel;
+    protected $photoModel;
 
     public function __construct()
     {
@@ -34,6 +36,7 @@ class MapController extends BaseController
         $this->wilayahModel = new M_Wilayah();
         $this->judulKeteranganModel = new M_judulKeterangan();
         $this->isiKeteranganModel = new M_isiKeterangan();
+        $this->photoModel = new M_photo();
     }
 
     public function index()
@@ -65,7 +68,7 @@ class MapController extends BaseController
         $id_kel = $request->getGet('id_kel');
 
         // Menggunakan nama model yang benar sesuai skema Anda
-        $photoModel = new \App\Models\PhotoModel(); 
+        $photoModel = new \App\Models\M_photo(); 
 
         if ($koordinat_id) {
             $dataKoordinat = $this->koordinatModel->select('koordinat.*, kecamatan.nama_kec, kelurahan.nama_kel, sumber_data.nama_sumber, sumber_data.warna, kota_kab.nama_kotakab')
@@ -91,7 +94,7 @@ class MapController extends BaseController
             ->whereIn('isi_keterangan.id_koordinat', $koordinatIds)
             ->findAll();
 
-        $allPhotos = $photoModel->whereIn('koordinat_id', $koordinatIds)->findAll();
+        $allPhotos = $photoModel->whereIn('id_koordinat', $koordinatIds)->findAll();
 
         $keteranganGrouped = [];
         foreach ($allKeterangan as $keterangan) {

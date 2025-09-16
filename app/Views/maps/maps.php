@@ -42,12 +42,12 @@
                             <div class="col-md-3 d-flex align-items-end justify-content-end">
                                 <div class="d-flex gap-2">
                                     <a href="<?= base_url('koordinat/import'); ?>" class="btn btn-primary" style="height: 40px;">
-                                        <i class="fas fa-file-import"></i> Impor Data
+                                        <i class="fas fa-file-import"></i> Import
                                     </a>
 
                                     <div class="btn-group">
                                         <button type="button" style="height: 40px; " class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                            <i class="fas fa-file-export"></i> Ekspor Data
+                                            <i class="fas fa-file-export"></i> Export
                                         </button>
                                         <ul class="dropdown-menu">
                                             <li><a class="dropdown-item" id="exportKML" href="<?= base_url('map/exportKML'); ?>">Format KML</a></li>
