@@ -3,23 +3,23 @@
         <div class="row text-muted">
             <div class="col-6 text-start">
                 <p class="mb-0">
-                    <a class="text-muted" href="https://adminkit.io/" target="_blank"><strong>PLN</strong></a> - <a
-                        class="text-muted" href="https://adminkit.io/" target="_blank"><strong>PJU Data Center</strong></a> &copy;
+                <span class="text-muted"><strong>PLN</strong></span> - <span
+                class="text-muted"><strong>PJU Data Center</strong></span> &copy;
                 </p>
             </div>
             <div class="col-6 text-end">
                 <ul class="list-inline">
                     <li class="list-inline-item">
-                        <a class="text-muted" href="https://adminkit.io/" target="_blank">Support</a>
+                    <span class="text-muted">Support</span>
                     </li>
                     <li class="list-inline-item">
-                        <a class="text-muted" href="https://adminkit.io/" target="_blank">Help Center</a>
+                    <span class="text-muted">Help Center</span>
                     </li>
                     <li class="list-inline-item">
-                        <a class="text-muted" href="https://adminkit.io/" target="_blank">Privacy</a>
+                    <span class="text-muted">Privacy</span>
                     </li>
                     <li class="list-inline-item">
-                        <a class="text-muted" href="https://adminkit.io/" target="_blank">Terms</a>
+                    <span class="text-muted">Terms</span>
                     </li>
                 </ul>
             </div>

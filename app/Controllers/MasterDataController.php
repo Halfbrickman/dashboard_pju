@@ -94,9 +94,7 @@ class MasterDataController extends Controller
         $id_koordinat = $this->request->getPost('id_koordinat');
         
         $rules = [
-            'id_kotakab' => 'required',
-            'id_kec' => 'required',
-            'id_kel' => 'required',
+            
             'id_sumberdata' => 'required',
             'latitude' => 'required',
             'longitude' => 'required',
@@ -148,15 +146,18 @@ class MasterDataController extends Controller
 
         return redirect()->to('/koordinat')->with('success', $message);
     }
-    
+
     public function delete($id)
     {
         // Pastikan data keterangan ikut terhapus
         $this->isiKeteranganModel->where('id_koordinat', $id)->delete();
         $this->koordinatModel->delete($id);
-        
+
         // Ubah respons menjadi JSON agar bisa ditangani oleh fetch API
-        return $this->response->setJSON(['status' => 'success', 'message' => 'Data koordinat berhasil dihapus.']);
+        session()->setFlashdata('success', 'Data koordinat berhasil dihapus!');
+
+        // Redirect balik ke halaman daftar koordinat
+        return redirect()->to('/koordinat');
     }
         
     public function getKecamatanByKotaKab($id_kotakab)

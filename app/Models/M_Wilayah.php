@@ -5,6 +5,12 @@ use CodeIgniter\Model;
 
 class M_Wilayah extends Model
 {
+
+    // Tambahkan properti $table dan $primaryKey
+    // Ini penting agar CodeIgniter dapat bekerja dengan benar.
+    protected $table = 'kota_kab'; 
+    protected $primaryKey = 'id_kotakab'; 
+    protected $returnType     = 'array';
     
     public function getKotaKab($where = false)
     {
@@ -30,6 +36,19 @@ class M_Wilayah extends Model
         if ($where) {
             $builder->where($where);
         }
+        return $builder->get()->getResultArray();
+    }
+    public function getKecamatanByKotakabId($idKotakab)
+    {
+        $builder = $this->db->table('kecamatan');
+        $builder->where('id_kotakab', $idKotakab);
+        return $builder->get()->getResultArray();
+    }
+
+    public function getKelurahanByKecId($idKec)
+    {
+        $builder = $this->db->table('kelurahan');
+        $builder->where('id_kec', $idKec);
         return $builder->get()->getResultArray();
     }
 }

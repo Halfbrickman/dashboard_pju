@@ -1,9 +1,13 @@
 <main class="content">
     <div class="container-fluid p-0">
-        <div class="d-flex">
+        <div class="d-flex justify-content-between align-items-center">
             <h1 class="h3 mb-3 fw-bold">Master Sumber Data</h1>
             <div class="ms-auto card-tools">
-                <a href="/sumberdata/form" class="btn btn-primary btn-md fw-bold">Tambah Data</a>
+                <?php if (session()->get('role_id') == 1) : ?>
+                    <div class="ms-auto card-tools">
+                        <a href="/sumberdata/form" class="btn btn-primary btn-md fw-bold">Tambah Data</a>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -14,34 +18,36 @@
                         <table class="table table-hover my-0">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
-                                    <th>Nama Sumber Data</th>
+                                    <th>No.</th> <th>Nama Sumber Data</th>
                                     <th>Warna Marker</th>
-                                    <th class="text-center">Aksi</th>
+                                    <?php if (session()->get('role_id') == 1) : ?>
+                                        <th class="text-center">Aksi</th>
+                                    <?php endif; ?>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php if (!empty($sumber_data)) : ?>
-                                    <?php foreach ($sumber_data as $sumber) : ?>
+                                    <?php $no = 1; ?> <?php foreach ($sumber_data as $sumber) : ?>
                                         <tr>
-                                            <td><?= esc($sumber['id_sumberdata']); ?></td>
-                                            <td><?= esc($sumber['nama_sumber']); ?></td>
+                                            <td><?= $no++; ?></td> <td><?= esc($sumber['nama_sumber']); ?></td>
                                             <td style="display: flex; gap: 10px; align-items: center;">
                                                 <div style="width: 30px; height: 30px; background-color: <?= esc($sumber['warna']); ?>; border-radius: 25%;"></div>
                                                 <div><?= esc($sumber['warna']); ?></div>
                                             </td>
-                                            <td class="text-end" style="width: 150px;">
-                                                <a href="/sumberdata/form/<?= esc($sumber['id_sumberdata']); ?>" class="btn btn-warning btn-sm" style="border-radius: 10px;">Edit</a>
-                                                <form id="delete-form-<?= esc($sumber['id_sumberdata']); ?>" action="/sumberdata/delete/<?= esc($sumber['id_sumberdata']); ?>" method="post" class="d-inline">
-                                                    <?= csrf_field(); ?>
-                                                    <button type="button" class="btn btn-danger btn-sm delete-btn" style="border-radius: 10px;" data-id="<?= esc($sumber['id_sumberdata']); ?>" data-name="<?= esc($sumber['nama_sumber']); ?>">Hapus</button>
-                                                </form>
-                                            </td>
+                                            <?php if (session()->get('role_id') == 1) : ?>
+                                                <td class="text-end" style="width: 150px;">
+                                                    <a href="/sumberdata/form/<?= esc($sumber['id_sumberdata']); ?>" class="btn btn-warning btn-sm" style="border-radius: 10px;">Edit</a>
+                                                    <form id="delete-form-<?= esc($sumber['id_sumberdata']); ?>" action="/sumberdata/delete/<?= esc($sumber['id_sumberdata']); ?>" method="post" class="d-inline">
+                                                        <?= csrf_field(); ?>
+                                                        <button type="button" class="btn btn-danger btn-sm delete-btn" style="border-radius: 10px;" data-id="<?= esc($sumber['id_sumberdata']); ?>" data-name="<?= esc($sumber['nama_sumber']); ?>">Hapus</button>
+                                                    </form>
+                                                </td>
+                                            <?php endif; ?>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="4" class="text-center">Tidak ada data sumber ditemukan.</td>
+                                        <td colspan="<?= (session()->get('role_id') == 1) ? '4' : '3' ?>" class="text-center">Tidak ada data sumber ditemukan.</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>

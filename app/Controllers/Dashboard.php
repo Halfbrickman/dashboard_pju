@@ -4,7 +4,11 @@ namespace App\Controllers;
 
 use App\Models\M_koordinat;
 use App\Models\M_sumberData;
+<<<<<<< HEAD
 use App\Models\M_isiKeterangan; // <-- [TAMBAHKAN] Panggil model M_isiKeterangan
+=======
+use App\Models\M_isiKeterangan;
+>>>>>>> develop
 
 class Dashboard extends BaseController
 {
@@ -12,6 +16,7 @@ class Dashboard extends BaseController
     {
         $modelKordinat = new M_koordinat();
         $modelSumberData = new M_sumberData();
+<<<<<<< HEAD
         $modelIsiKeterangan = new M_isiKeterangan(); // <-- [TAMBAHKAN] Buat instance model
 
         // 1. Ambil data koordinat utama
@@ -35,10 +40,28 @@ class Dashboard extends BaseController
             foreach ($allKeterangan as $keterangan) {
                 $id = $keterangan['id_koordinat'];
                 // Hapus id_koordinat dari array agar tidak mubazir
+=======
+        $modelIsiKeterangan = new M_isiKeterangan();
+
+        $koordinatData = $modelKordinat->getDataKoordinat();
+        
+        if (!empty($koordinatData)) {
+            $koordinatIds = array_column($koordinatData, 'id_koordinat');
+            $allKeterangan = $modelIsiKeterangan
+                ->select('isi_keterangan.id_koordinat, isi_keterangan.isi_keterangan, judul_keterangan.jdl_keterangan')
+                ->join('judul_keterangan', 'judul_keterangan.id_jdlketerangan = isi_keterangan.id_jdlketerangan')
+                ->whereIn('isi_keterangan.id_koordinat', $koordinatIds)
+                ->findAll();
+
+            $keteranganMap = [];
+            foreach ($allKeterangan as $keterangan) {
+                $id = $keterangan['id_koordinat'];
+>>>>>>> develop
                 unset($keterangan['id_koordinat']); 
                 $keteranganMap[$id][] = $keterangan;
             }
 
+<<<<<<< HEAD
             // 5. Gabungkan data keterangan ke dalam data koordinat utama
             foreach ($koordinatData as &$item) { // Gunakan '&' agar bisa memodifikasi array asli
                 $id = $item['id_koordinat'];
@@ -47,18 +70,28 @@ class Dashboard extends BaseController
             }
         }
         // **[MODIFIKASI SELESAI]**
+=======
+            foreach ($koordinatData as &$item) {
+                $id = $item['id_koordinat'];
+                $item['keterangan_tambahan'] = $keteranganMap[$id] ?? [];
+            }
+        }
+>>>>>>> develop
         
         $sumberData = $modelSumberData->findAll();
         
         $data = [
             'title' => 'Dashboard',
+<<<<<<< HEAD
             'koordinat_json' => json_encode($koordinatData) // Kirim data yang sudah lengkap
+=======
+            'koordinat_json' => json_encode($koordinatData),
+            'dataKordinat' => count($koordinatData),
+            'dataPerSumber' => [],
+            'labels' => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+            'datasets' => [], // Inisialisasi datasets di sini
+>>>>>>> develop
         ];
-        
-        $data['dataKordinat'] = count($koordinatData);
-        $data['dataPerSumber'] = [];
-        $datasets = [];
-        $labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         
         foreach ($sumberData as $sumber) {
             $jumlah = $modelKordinat->where('id_sumberdata', $sumber['id_sumberdata'])->countAllResults();
@@ -78,7 +111,8 @@ class Dashboard extends BaseController
             
             $dataBulanan = array_values($dataPerBulan);
             
-            $datasets[] = [
+            // Tambahkan setiap dataset ke dalam array $data['datasets']
+            $data['datasets'][] = [
                 'label' => $sumber['nama_sumber'],
                 'fill' => false,
                 'backgroundColor' => $sumber['warna'],
@@ -87,13 +121,24 @@ class Dashboard extends BaseController
             ];
         }
 
-        $data['labels'] = json_encode($labels);
-        $data['datasets'] = json_encode($datasets);
+        // Encode data untuk chart
+        $data['labels'] = json_encode($data['labels']);
+        $data['datasets'] = json_encode($data['datasets']);
         
-        return view('Template/header', $data)
-             . view('Template/sidebar')
-             . view('dashboard', $data)
-             . view('Template/assetDashboard')
-             . view('Template/footer');
+        $userRoleId = session()->get('role_id');
+
+        if ($userRoleId == 1) { // Jika role_id adalah Admin
+            echo view('Template/header', $data);
+            echo view('Template/sidebar');
+            echo view('dashboard', $data);
+            echo view('Template/assetDashboard');
+            echo view('Template/footer');
+        } else { // Jika role_id adalah User biasa
+            echo view('Template/header', $data);
+            echo view('Template/sidebar');
+            echo view('dashboard', $data);
+            echo view('Template/assetDashboard');
+            echo view('Template/footer');
+        }
     }
 }
