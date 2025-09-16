@@ -106,7 +106,7 @@ class MapController extends BaseController
         
         $photosGrouped = [];
         foreach ($allPhotos as $photo) {
-            $photosGrouped[$photo['koordinat_id']][] = $photo;
+            $photosGrouped[$photo['id_koordinat']][] = $photo;
         }
 
         foreach ($dataKoordinat as &$koordinat) {
@@ -188,6 +188,72 @@ class MapController extends BaseController
         } else {
             $this->koordinatModel->db->transRollback();
             return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal memperbarui data.']);
+        }
+    }
+
+    public function saveMarker()
+    {
+        $request = \Config\Services::request();
+
+        // 1. Ambil semua data marker dari POST request
+        $data_koordinat = [
+            'id_sumberdata' => $request->getPost('id_sumberdata'),
+            'id_kotakab' => $request->getPost('id_kotakab'),
+            'id_kec' => $request->getPost('id_kec'),
+            'id_kel' => $request->getPost('id_kel'),
+            'latitude' => $request->getPost('latitude'),
+            'longitude' => $request->getPost('longitude'),
+        ];
+        
+        // Validasi data
+        if (empty($data_koordinat['latitude']) || empty($data_koordinat['longitude'])) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Data koordinat tidak lengkap.']);
+        }
+
+        // Mulai transaksi untuk memastikan semua operasi berhasil
+        $this->koordinatModel->db->transBegin();
+
+        // 2. Simpan data marker ke tabel 'koordinat' dan dapatkan ID-nya
+        $success = $this->koordinatModel->insert($data_koordinat);
+        $koordinat_id = $this->koordinatModel->getInsertID();
+
+        if ($success) {
+            // 3. Simpan data keterangan jika ada
+            $keteranganData = $request->getPost('keterangan');
+            if ($keteranganData) {
+                foreach ($keteranganData as $idJdlKeterangan => $isiKeterangan) {
+                    if (!empty($isiKeterangan)) {
+                        $dataKeterangan = [
+                            'id_koordinat' => $koordinat_id,
+                            'id_jdlketerangan' => $idJdlKeterangan,
+                            'isi_keterangan' => $isiKeterangan,
+                        ];
+                        $this->isiKeteranganModel->insert($dataKeterangan);
+                    }
+                }
+            }
+
+            // 4. Unggah dan simpan foto jika ada
+            $photos = $request->getFileMultiple('photos');
+            if ($photos) {
+                foreach ($photos as $photo) {
+                    if ($photo->isValid() && !$photo->hasMoved()) {
+                        $newName = $photo->getRandomName();
+                        $photo->move(FCPATH . 'uploads/photos', $newName);
+                        $data_photo = [
+                            'id_koordinat' => $koordinat_id, // Gunakan ID marker yang baru
+                            'file_name' => $newName
+                        ];
+                        $this->photoModel->insert($data_photo);
+                    }
+                }
+            }
+            
+            $this->koordinatModel->db->transCommit();
+            return $this->response->setJSON(['status' => 'success', 'message' => 'Marker dan foto berhasil disimpan.', 'id_koordinat' => $koordinat_id]);
+        } else {
+            $this->koordinatModel->db->transRollback();
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal menyimpan data marker.']);
         }
     }
 

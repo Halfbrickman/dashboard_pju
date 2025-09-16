@@ -178,7 +178,7 @@ class KoordinatController extends BaseController
 
                 // Simpan jalur file yang dapat diakses publik ke database
                 $photoModel->insert([
-                    'koordinat_id' => $koordinatId,
+                    'id_koordinat' => $koordinatId, // BARIS INI TELAH DIPERBAIKI
                     'file_path'    => $uploadPath . $newName,
                 ]);
 

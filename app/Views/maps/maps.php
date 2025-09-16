@@ -133,7 +133,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <button type="submit" form="uploadPhotoForm" class="btn btn-primary">Unggah Foto</button>
+                <button type="button" id="uploadPhotoButton" class="btn btn-primary">Unggah Foto</button>
             </div>
         </div>
     </div>
@@ -504,6 +504,48 @@
             selectElement.appendChild(option);
         });
     }
+
+    // Tangani pengiriman formulir unggah foto menggunakan JavaScript
+    document.getElementById('uploadPhotoButton').addEventListener('click', function() {
+        const uploadForm = document.getElementById('uploadPhotoForm');
+        const formData = new FormData(uploadForm);
+        
+        // Ambil URL dari atribut action form
+        const url = uploadForm.action;
+
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest', // Tambahkan header ini
+                'X-CSRF-TOKEN': '<?= csrf_hash() ?>'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                Swal.fire('Berhasil!', data.message, 'success');
+                
+                // Tutup modal
+                var uploadPhotoModal = bootstrap.Modal.getInstance(document.getElementById('uploadPhotoModal'));
+                uploadPhotoModal.hide();
+
+                // Reset input file
+                document.getElementById('photos').value = '';
+
+                // Perbarui marker di peta
+                loadMarkers(); 
+            } else {
+                // Tampilkan pesan error dari server
+                const errorMessages = typeof data.message === 'object' ? Object.values(data.message).join('<br>') : data.message;
+                Swal.fire('Gagal!', errorMessages, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire('Gagal!', 'Terjadi kesalahan jaringan.', 'error');
+        });
+    });
 
     filterSumberData.addEventListener('change', loadMarkers);
     filterKota.addEventListener('change', function() {
