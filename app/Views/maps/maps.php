@@ -115,13 +115,36 @@
     </div>
 </div>
 
+<div class="modal fade" id="uploadPhotoModal" tabindex="-1" aria-labelledby="uploadPhotoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadPhotoModalLabel">Unggah Foto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadPhotoForm" action="" method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="koordinat_id" id="upload_koordinat_id">
+                    <div class="mb-3">
+                        <label for="photos" class="form-label">Pilih Foto (Bisa lebih dari satu):</label>
+                        <input type="file" name="photos[]" id="photos" class="form-control" multiple>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" form="uploadPhotoForm" class="btn btn-primary">Unggah Foto</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     const allJudulKeterangan = <?= json_encode($judul_keterangan); ?>;
     const isAdmin = <?= session()->get('role_id') == 1 ? 'true' : 'false'; ?>;
     let allMarkersData = [];
     let markerLayers = {};
 
-    // Data dari PHP sekarang tersedia di JavaScript
     const allSumberData = <?= json_encode($sumber_data); ?>;
     const allKotaKab = <?= json_encode($kotakab); ?>;
     let allKecamatan = [];
@@ -145,22 +168,41 @@
 
     function renderPopupContent(item) {
         let popupContent = `
-            <strong>Sumber Data:</strong> ${item.nama_sumber}<br>
+            <strong>Sumber Data:</strong> ${item.nama_sumber || '-'}<br>
             <strong>Kota/Kab:</strong> ${item.nama_kotakab || '-'}<br>
             <strong>Kecamatan:</strong> ${item.nama_kec || '-'}<br>
             <strong>Kelurahan:</strong> ${item.nama_kel || '-'}<br>
-            <strong>Latitude:</strong> ${item.latitude}<br>
-            <strong>Longitude:</strong> ${item.longitude}<br>
+            <strong>Latitude:</strong> ${item.latitude || '-'}<br>
+            <strong>Longitude:</strong> ${item.longitude || '-'}<br>
             <hr>
         `;
 
+        if (item.photos && item.photos.length > 0) {
+            popupContent += `
+                <h6>Foto-foto:</h6>
+                <div class="photo-gallery" style="display: flex; flex-wrap: wrap; gap: 5px; max-height: 150px; overflow-y: auto;">
+            `;
+            item.photos.forEach(photo => {
+                const photoUrl = `<?= base_url('/'); ?>${photo.file_path}`;
+                popupContent += `
+                    <a href="${photoUrl}" target="_blank">
+                        <img src="${photoUrl}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 5px; cursor: pointer;">
+                    </a>
+                `;
+            });
+            popupContent += `</div><hr>`;
+        }
+        
         if (isAdmin) {
             popupContent += `
-                <button onclick="openEditModal(${item.id_koordinat})" class="btn btn-warning btn-sm" style="border-radius: 10px; margin-right: 5px;">
+                <button onclick="openEditModal('${item.id_koordinat}')" class="btn btn-warning btn-sm" style="border-radius: 10px; margin-right: 5px;">
                     <i class="fas fa-edit"></i> Edit
                 </button>
-                <button class="btn btn-danger btn-sm" onclick="confirmDelete(${item.id_koordinat})" style="border-radius: 10px;">
+                <button class="btn btn-danger btn-sm" onclick="confirmDelete('${item.id_koordinat}')" style="border-radius: 10px;">
                     <i class="fas fa-trash-alt"></i> Hapus
+                </button>
+                <button onclick="openUploadPhotoModal('${item.id_koordinat}')" class="btn btn-info btn-sm" style="border-radius: 10px; margin-top: 5px;">
+                    <i class="fas fa-camera"></i> Unggah Foto
                 </button>
                 <br><br>
             `;
@@ -169,6 +211,7 @@
         popupContent += `
             <a href="https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}" target="_blank" class="btn btn-info btn-sm">Lihat di Google Maps</a>
         `;
+
         return popupContent;
     }
 
@@ -189,25 +232,40 @@
         if (idKel) url += `&id_kel=${idKel}`;
 
         fetch(url)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Data yang diterima:', data);
+                
                 allMarkersData = data;
                 allMarkersData.forEach(item => {
-                    if (item.latitude && item.longitude) {
+                    // Cek apakah latitude dan longitude ada dan valid
+                    const lat = parseFloat(item.latitude);
+                    const lng = parseFloat(item.longitude);
+
+                    if (!isNaN(lat) && !isNaN(lng)) {
                         var color = item.warna;
                         var customIcon = createCustomIcon(color);
-                        var marker = L.marker([item.latitude, item.longitude], {
+                        var marker = L.marker([lat, lng], {
                             icon: customIcon
                         });
 
                         markerLayers[item.id_koordinat] = marker;
                         marker.bindPopup(renderPopupContent(item));
                         markers.addLayer(marker);
+                    } else {
+                        console.warn(`Data tidak valid untuk item dengan id_koordinat: ${item.id_koordinat}`);
                     }
                 });
                 map.addLayer(markers);
             })
-            .catch(error => console.error('Error fetching data:', error));
+            .catch(error => {
+                console.error('Error fetching data:', error);
+            });
     }
 
     function openEditModal(id) {
@@ -283,7 +341,7 @@
             fetch(`<?= base_url('api/kecamatan_by_kotakab'); ?>?id_kotakab=${selectedKotaKabId}`)
                 .then(response => response.json())
                 .then(data => {
-                    allKecamatan = data; // Simpan data ke variabel global
+                    allKecamatan = data; 
                     allKecamatan.forEach(kecamatan => {
                         const newOption = document.createElement('option');
                         newOption.value = kecamatan.id_kec;
@@ -306,7 +364,7 @@
             fetch(`<?= base_url('api/kelurahan_by_kecamatan'); ?>?id_kec=${selectedKecamatanId}`)
                 .then(response => response.json())
                 .then(data => {
-                    allKelurahan = data; // Simpan data ke variabel global
+                    allKelurahan = data;
                     allKelurahan.forEach(kelurahan => {
                         const newOption = document.createElement('option');
                         newOption.value = kelurahan.id_kel;
@@ -420,12 +478,23 @@
         });
     }
 
+    function openUploadPhotoModal(koordinatId) {
+        const form = document.getElementById('uploadPhotoForm');
+        // Set action form dengan ID koordinat dari marker
+        form.action = `<?= site_url('koordinat/uploadPhotos/'); ?>${koordinatId}`;
+        
+        // Set nilai ID koordinat di input tersembunyi
+        document.getElementById('upload_koordinat_id').value = koordinatId;
+
+        var uploadModal = new bootstrap.Modal(document.getElementById('uploadPhotoModal'));
+        uploadModal.show();
+    }
+
     const filterSumberData = document.getElementById('filterSumberData');
     const filterKota = document.getElementById('filterKota');
     const filterKecamatan = document.getElementById('filterKecamatan');
     const filterKelurahan = document.getElementById('filterKelurahan');
 
-    // Fungsi untuk mengisi ulang dropdown
     function populateSelect(selectElement, data, placeholder, valueKey, textKey) {
         selectElement.innerHTML = `<option value="">${placeholder}</option>`;
         data.forEach(item => {

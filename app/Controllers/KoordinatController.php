@@ -7,6 +7,8 @@ use App\Models\M_sumberData;
 use App\Models\M_judulKeterangan;
 use App\Models\M_isiKeterangan;
 use App\Models\M_Wilayah;
+use App\Models\M_photo;
+use CodeIgniter\Controller;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class KoordinatController extends BaseController
@@ -130,6 +132,64 @@ class KoordinatController extends BaseController
             }
         } catch (\Exception $e) {
             return redirect()->to('/koordinat/import')->with('error', 'Terjadi error saat memproses file: ' . $e->getMessage());
+        }
+    }
+
+    public function uploadPhotos($koordinatId)
+    {
+        // Pastikan request adalah POST
+        if (!$this->request->is('post')) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Metode permintaan tidak valid.']);
+        }
+
+        $validationRule = [
+            'photos' => [
+                'label' => 'Gambar',
+                'rules' => 'uploaded[photos.0]|max_size[photos,2048]|is_image[photos]',
+                'errors' => [
+                    'uploaded' => 'Tidak ada gambar yang diunggah.',
+                    'max_size' => 'Ukuran gambar maksimal adalah 2MB.',
+                    'is_image' => 'File yang diunggah harus berupa gambar.'
+                ]
+            ],
+        ];
+
+        // Jalankan validasi
+        if (!$this->validate($validationRule)) {
+            return $this->response->setJSON([
+                'status' => 'error',
+                'message' => $this->validator->getErrors()
+            ]);
+        }
+
+        $files = $this->request->getFiles();
+        $photoModel = new M_photo();
+        $uploadedCount = 0;
+
+        // Tentukan folder penyimpanan yang dapat diakses publik
+        $uploadPath = 'uploads/koordinat_photos/';
+
+        foreach ($files['photos'] as $file) {
+            if ($file->isValid() && !$file->hasMoved()) {
+                $newName = $file->getRandomName();
+
+                // Pindahkan file ke folder di dalam 'public'
+                $file->move(FCPATH . $uploadPath, $newName);
+
+                // Simpan jalur file yang dapat diakses publik ke database
+                $photoModel->insert([
+                    'koordinat_id' => $koordinatId,
+                    'file_path'    => $uploadPath . $newName,
+                ]);
+
+                $uploadedCount++;
+            }
+        }
+
+        if ($uploadedCount > 0) {
+            return $this->response->setJSON(['status' => 'success', 'message' => "$uploadedCount foto berhasil diunggah."]);
+        } else {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Tidak ada foto yang berhasil diunggah.']);
         }
     }
 }

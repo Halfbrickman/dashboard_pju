@@ -64,6 +64,9 @@ class MapController extends BaseController
         $id_kec = $request->getGet('id_kec');
         $id_kel = $request->getGet('id_kel');
 
+        // Menggunakan nama model yang benar sesuai skema Anda
+        $photoModel = new \App\Models\PhotoModel(); 
+
         if ($koordinat_id) {
             $dataKoordinat = $this->koordinatModel->select('koordinat.*, kecamatan.nama_kec, kelurahan.nama_kel, sumber_data.nama_sumber, sumber_data.warna, kota_kab.nama_kotakab')
                 ->join('kecamatan', 'kecamatan.id_kec = koordinat.id_kec', 'left')
@@ -88,6 +91,8 @@ class MapController extends BaseController
             ->whereIn('isi_keterangan.id_koordinat', $koordinatIds)
             ->findAll();
 
+        $allPhotos = $photoModel->whereIn('koordinat_id', $koordinatIds)->findAll();
+
         $keteranganGrouped = [];
         foreach ($allKeterangan as $keterangan) {
             $keteranganGrouped[$keterangan['id_koordinat']][] = [
@@ -95,9 +100,15 @@ class MapController extends BaseController
                 'jdl_keterangan' => $keterangan['jdl_keterangan']
             ];
         }
+        
+        $photosGrouped = [];
+        foreach ($allPhotos as $photo) {
+            $photosGrouped[$photo['koordinat_id']][] = $photo;
+        }
 
         foreach ($dataKoordinat as &$koordinat) {
             $koordinat['keterangan'] = $keteranganGrouped[$koordinat['id_koordinat']] ?? [];
+            $koordinat['photos'] = $photosGrouped[$koordinat['id_koordinat']] ?? [];
         }
 
         return $this->response->setJSON($dataKoordinat);
