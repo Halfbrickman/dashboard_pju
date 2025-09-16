@@ -37,9 +37,19 @@ $routes->post('koordinat/uploadPhotos/(:num)', 'KoordinatController::uploadPhoto
 
 // Rute API untuk dropdown dinamis
 $routes->group('api', function ($routes) {
+
+    // --- Rute untuk Peta ---
+    $routes->get('markers', 'MapController::getMarkerData');
+    $routes->post('markers/update', 'MapController::updateMarker');
+    $routes->post('photo/delete/(:num)', 'MapController::deletePhoto/$1');
+
+    // --- Rute untuk Data Master (yang sudah ada sebelumnya) ---
+    $routes->get('kecamatan_by_kotakab', 'MapController::getKecamatan');
+    $routes->get('kelurahan_by_kecamatan', 'MapController::getKelurahan');
     $routes->get('kecamatan/(:num)', 'MasterDataController::getKecamatanByKotaKab/$1');
     $routes->get('kelurahan/(:num)', 'MasterDataController::getKelurahanByKecamatan/$1');
     $routes->get('judul-keterangan/(:num)', 'MasterDataController::getJudulKeteranganBySumberData/$1');
+
 });
 
 // Rute untuk peta
@@ -90,10 +100,3 @@ $routes->group('', ['filter' => 'admin'], function ($routes) {
     $routes->post('judul-keterangan/save', 'JudulKeterangan::save');
     $routes->post('judul-keterangan/delete/(:num)', 'JudulKeterangan::delete/$1');
 });
-$routes->group('api', function ($routes) {
-    $routes->post('markers/update/(:any)', 'Api\Koordinat::update/$1');
-});
-$routes->post('api/markers/update', 'MapController::updateMarker/$1');
-
-$routes->get('api/kecamatan_by_kotakab', 'MapController::getKecamatan');
-$routes->get('api/kelurahan_by_kecamatan', 'MapController::getKelurahan');

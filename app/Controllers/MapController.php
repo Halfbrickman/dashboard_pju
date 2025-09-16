@@ -67,8 +67,7 @@ class MapController extends BaseController
         $id_kec = $request->getGet('id_kec');
         $id_kel = $request->getGet('id_kel');
 
-        // Menggunakan nama model yang benar sesuai skema Anda
-        $photoModel = new \App\Models\M_photo(); 
+        $photoModel = new \App\Models\M_photo();
 
         if ($koordinat_id) {
             $dataKoordinat = $this->koordinatModel->select('koordinat.*, kecamatan.nama_kec, kelurahan.nama_kel, sumber_data.nama_sumber, sumber_data.warna, kota_kab.nama_kotakab')
@@ -88,13 +87,21 @@ class MapController extends BaseController
 
         $koordinatIds = array_column($dataKoordinat, 'id_koordinat');
         
-        $allKeterangan = $this->isiKeteranganModel
-            ->select('isi_keterangan.isi_keterangan, judul_keterangan.jdl_keterangan, isi_keterangan.id_koordinat')
-            ->join('judul_keterangan', 'judul_keterangan.id_jdlketerangan = isi_keterangan.id_jdlketerangan')
-            ->whereIn('isi_keterangan.id_koordinat', $koordinatIds)
-            ->findAll();
+        // Pastikan array ID tidak kosong sebelum melakukan query
+        $allKeterangan = [];
+        if (!empty($koordinatIds)) {
+            $allKeterangan = $this->isiKeteranganModel
+                ->select('isi_keterangan.isi_keterangan, judul_keterangan.jdl_keterangan, isi_keterangan.id_koordinat')
+                ->join('judul_keterangan', 'judul_keterangan.id_jdlketerangan = isi_keterangan.id_jdlketerangan')
+                ->whereIn('isi_keterangan.id_koordinat', $koordinatIds)
+                ->findAll();
+        }
 
-        $allPhotos = $photoModel->whereIn('id_koordinat', $koordinatIds)->findAll();
+        // Pastikan array ID tidak kosong sebelum melakukan query
+        $allPhotos = [];
+        if (!empty($koordinatIds)) {
+            $allPhotos = $photoModel->whereIn('id_koordinat', $koordinatIds)->findAll();
+        }
 
         $keteranganGrouped = [];
         foreach ($allKeterangan as $keterangan) {
@@ -115,6 +122,37 @@ class MapController extends BaseController
         }
 
         return $this->response->setJSON($dataKoordinat);
+    }
+
+    public function deletePhoto($id_photo)
+    {
+        $request = \Config\Services::request();
+        // Pastikan permintaan datang dari AJAX
+        if (!$request->isAJAX()) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Invalid request.']);
+        }
+    
+        $photoModel = new \App\Models\M_photo();
+        $photo = $photoModel->find($id_photo);
+    
+        if (!$photo) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Foto tidak ditemukan.']);
+        }
+    
+        // Dapatkan path file dari database
+        $file_path = FCPATH . $photo['file_path'];
+    
+        // Hapus file fisik dari server jika ada
+        if (file_exists($file_path)) {
+            unlink($file_path);
+        }
+    
+        // Hapus data foto dari database
+        if ($photoModel->delete($id_photo)) {
+            return $this->response->setJSON(['status' => 'success', 'message' => 'Foto berhasil dihapus.']);
+        } else {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal menghapus data foto dari database.']);
+        }
     }
 
     public function getKecamatan()
@@ -139,55 +177,79 @@ class MapController extends BaseController
 
     public function updateMarker()
     {
-        $id = $this->request->getVar('id_koordinat');
-        $data = [
-            'id_sumberdata' => $this->request->getVar('id_sumberdata'),
-            'id_kotakab' => $this->request->getVar('id_kotakab'),
-            'id_kec' => $this->request->getVar('id_kec'),
-            'id_kel' => $this->request->getVar('id_kel'),
-            'latitude' => $this->request->getVar('latitude'),
-            'longitude' => $this->request->getVar('longitude'),
-        ];
-
-        $keteranganData = $this->request->getVar('keterangan');
-
-        if (empty($id) || empty($data['latitude']) || empty($data['longitude'])) {
-            return $this->response->setJSON(['status' => 'error', 'message' => 'Data tidak lengkap.']);
+        $request = \Config\Services::request();
+        if (!$request->isAJAX()) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Invalid request.']);
         }
 
-        // Mulai transaksi untuk memastikan kedua update berhasil
-        $this->koordinatModel->db->transBegin();
+        $id = $request->getPost('id_koordinat');
+        $data_koordinat = [
+            'id_sumberdata' => $request->getPost('id_sumberdata'),
+            'id_kotakab'    => $request->getPost('id_kotakab'),
+            'id_kec'        => $request->getPost('id_kec'),
+            'id_kel'        => $request->getPost('id_kel'),
+            'latitude'      => $request->getPost('latitude'),
+            'longitude'     => $request->getPost('longitude'),
+        ];
 
-        // Update data di tabel koordinat
-        $updateKoordinat = $this->koordinatModel->update($id, $data);
+        $keteranganData = json_decode($request->getPost('keterangan'), true);
 
-        $updateKeterangan = true;
-        if ($keteranganData) {
-            // Hapus keterangan lama untuk ID koordinat ini
-            $this->isiKeteranganModel->where('id_koordinat', $id)->delete();
+        $db = \Config\Database::connect();
+        $db->transBegin();
 
-            // Simpan keterangan baru
-            foreach ($keteranganData as $idJdlKeterangan => $isiKeterangan) {
-                if (!empty($isiKeterangan)) { // Hanya simpan jika isinya tidak kosong
-                    $dataKeterangan = [
-                        'id_koordinat' => $id,
-                        'id_jdlketerangan' => $idJdlKeterangan,
-                        'isi_keterangan' => $isiKeterangan,
-                    ];
-                    if (!$this->isiKeteranganModel->insert($dataKeterangan)) {
-                        $updateKeterangan = false;
-                        break;
+        try {
+            // 1. Update tabel koordinat
+            $this->koordinatModel->update($id, $data_koordinat);
+
+            // 2. Update atau tambah keterangan
+            $keteranganModel = new \App\Models\M_isiKeterangan();
+            $keteranganModel->where('id_koordinat', $id)->delete();
+            if ($keteranganData) {
+                foreach ($keteranganData as $id_jdlketerangan => $isi_keterangan) {
+                    if (!empty($isi_keterangan)) {
+                        $data_keterangan = [
+                            'id_koordinat' => $id,
+                            'id_jdlketerangan' => $id_jdlketerangan,
+                            'isi_keterangan' => $isi_keterangan
+                        ];
+                        $keteranganModel->insert($data_keterangan);
                     }
                 }
             }
-        }
+            
+            // 3. Unggah dan simpan foto baru
+            $uploadedPhotos = $this->request->getFiles();
+            
+            // Periksa apakah ada file dengan nama 'photos_new'
+            if ($uploadedPhotos->hasFile('photos_new')) {
+                $photos = $uploadedPhotos->getFiles('photos_new');
+                $upload_dir = 'uploads/';
+                $photoModel = new \App\Models\M_photo();
 
-        if ($updateKoordinat && $updateKeterangan) {
-            $this->koordinatModel->db->transCommit();
+                foreach ($photos as $photo) {
+                    if ($photo->isValid() && !$photo->hasMoved()) {
+                        $newName = $photo->getRandomName();
+                        $photo->move(FCPATH . $upload_dir, $newName);
+
+                        $dataPhoto = [
+                            'id_koordinat' => $id,
+                            'file_path' => $upload_dir . $newName,
+                            'file_name' => $photo->getName(),
+                            'file_type' => $photo->getClientMimeType(),
+                            'file_size' => $photo->getSizeByUnit('kb')
+                        ];
+                        $photoModel->insert($dataPhoto);
+                    }
+                }
+            }
+            
+            $db->transCommit();
             return $this->response->setJSON(['status' => 'success', 'message' => 'Data berhasil diperbarui.']);
-        } else {
-            $this->koordinatModel->db->transRollback();
-            return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal memperbarui data.']);
+
+        } catch (\Exception $e) {
+            $db->transRollback();
+            log_message('error', 'Update failed: ' . $e->getMessage());
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal menyimpan data: ' . $e->getMessage()]);
         }
     }
 

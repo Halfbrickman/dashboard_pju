@@ -40,21 +40,19 @@
                                 </div>
                             </div>
                             <div class="col-md-3 d-flex align-items-end justify-content-end">
-                                <div class="d-flex gap-2">
+                                <div class="btn-group">
                                     <a href="<?= base_url('koordinat/import'); ?>" class="btn btn-primary" style="height: 40px;">
                                         <i class="fas fa-file-import"></i> Import
                                     </a>
 
-                                    <div class="btn-group">
-                                        <button type="button" style="height: 40px; " class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                            <i class="fas fa-file-export"></i> Export
-                                        </button>
-                                        <ul class="dropdown-menu">
-                                            <li><a class="dropdown-item" id="exportKML" href="<?= base_url('map/exportKML'); ?>">Format KML</a></li>
-                                            <li><a class="dropdown-item" id="exportExcel" href="<?= base_url('map/exportExcel'); ?>">Format Excel (.xlsx)</a></li>
-                                            <li><a class="dropdown-item" id="exportPDF" href="<?= base_url('map/exportPDF'); ?>">Format PDF</a></li>
-                                        </ul>
-                                    </div>
+                                    <button type="button" style="height: 40px; " class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-file-export"></i> Export
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" id="exportKML" href="<?= base_url('map/exportKML'); ?>">Format KML</a></li>
+                                        <li><a class="dropdown-item" id="exportExcel" href="<?= base_url('map/exportExcel'); ?>">Format Excel (.xlsx)</a></li>
+                                        <li><a class="dropdown-item" id="exportPDF" href="<?= base_url('map/exportPDF'); ?>">Format PDF</a></li>
+                                    </ul>
                                 </div>
                             </div>
                         </div>
@@ -105,35 +103,20 @@
                     <hr>
                     <h6>Keterangan Tambahan</h6>
                     <div id="additional-details-container"></div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <button type="button" class="btn btn-primary" id="saveEditButton">Simpan Perubahan</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="uploadPhotoModal" tabindex="-1" aria-labelledby="uploadPhotoModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="uploadPhotoModalLabel">Unggah Foto</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="uploadPhotoForm" action="" method="post" enctype="multipart/form-data">
-                    <input type="hidden" name="koordinat_id" id="upload_koordinat_id">
+                    
+                    <h6>Foto-foto</h6>
+                    <div id="photos-edit-container">
+                        </div>
+                    <hr>
+                    <h6>Unggah Foto Baru</h6>
                     <div class="mb-3">
-                        <label for="photos" class="form-label">Pilih Foto (Bisa lebih dari satu):</label>
-                        <input type="file" name="photos[]" id="photos" class="form-control" multiple>
+                        <input type="file" name="photos_new[]" id="photos_new" class="form-control" multiple>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <button type="button" id="uploadPhotoButton" class="btn btn-primary">Unggah Foto</button>
+                <button type="button" class="btn btn-primary" id="saveEditButton">Simpan Perubahan</button>
             </div>
         </div>
     </div>
@@ -201,15 +184,12 @@
                 <button class="btn btn-danger btn-sm" onclick="confirmDelete('${item.id_koordinat}')" style="border-radius: 10px;">
                     <i class="fas fa-trash-alt"></i> Hapus
                 </button>
-                <button onclick="openUploadPhotoModal('${item.id_koordinat}')" class="btn btn-info btn-sm" style="border-radius: 10px; margin-top: 5px;">
-                    <i class="fas fa-camera"></i> Unggah Foto
-                </button>
                 <br><br>
             `;
         }
 
         popupContent += `
-            <a href="https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}" target="_blank" class="btn btn-info btn-sm">Lihat di Google Maps</a>
+            <a href="http://maps.google.com/maps?q=${item.latitude},${item.longitude}" target="_blank" class="btn btn-info btn-sm">Lihat di Google Maps</a>
         `;
 
         return popupContent;
@@ -243,7 +223,6 @@
                 
                 allMarkersData = data;
                 allMarkersData.forEach(item => {
-                    // Cek apakah latitude dan longitude ada dan valid
                     const lat = parseFloat(item.latitude);
                     const lng = parseFloat(item.longitude);
 
@@ -321,15 +300,86 @@
                     <label for="edit_keterangan_${judul.id_jdlketerangan}" class="form-label">${judul.jdl_keterangan}:</label>
                     <input type="text" id="edit_keterangan_${judul.id_jdlketerangan}" name="keterangan[${judul.id_jdlketerangan}]" class="form-control" value="${value}">
                 </div>
-            `;
+                `;
                 additionalDetailsContainer.innerHTML += detailHtml;
             });
         } else {
             additionalDetailsContainer.innerHTML = `<p class="text-muted">Tidak ada keterangan tambahan untuk sumber data ini.</p>`;
         }
 
+        const photosContainer = document.getElementById('photos-edit-container');
+        photosContainer.innerHTML = '';
+        
+        if (item.photos && item.photos.length > 0) {
+            photosContainer.innerHTML = `
+            <div class="photo-gallery d-flex flex-wrap gap-2 mb-3">
+                ${item.photos.map(photo => `
+                    <div id="photo-${photo.id_photo}" class="position-relative">
+                        <img src="<?= base_url(); ?>${photo.file_path}" class="img-thumbnail" style="width: 100px; height: 100px; object-fit: cover;">
+                        <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 p-1" style="font-size: 0.75rem; border-radius: 50%;" 
+                                onclick="confirmDeletePhoto('${photo.id_photo}')">
+                            ×
+                        </button>
+                    </div>
+                `).join('')}
+            </div>`;
+        } else {
+            photosContainer.innerHTML = `<p class="text-muted">Tidak ada foto terunggah.</p>`;
+        }
+
         var editModal = new bootstrap.Modal(document.getElementById('editModal'));
         editModal.show();
+    }
+
+    function confirmDeletePhoto(photoId) {
+        Swal.fire({
+            title: 'Apakah Anda yakin?',
+            text: "Anda akan menghapus foto ini secara permanen!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Ya, hapus!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                deletePhoto(photoId);
+            }
+        });
+    }
+
+    function deletePhoto(photoId) {
+        fetch(`<?= base_url('api/photo/delete'); ?>/${photoId}`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': '<?= csrf_hash() ?>'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                Swal.fire('Terhapus!', data.message, 'success');
+                
+                const photoElement = document.getElementById(`photo-${photoId}`);
+                if (photoElement) {
+                    photoElement.remove();
+                }
+
+                const markerData = allMarkersData.find(m => m.photos.some(p => p.id_photo == photoId));
+                if(markerData) {
+                    markerData.photos = markerData.photos.filter(p => p.id_photo != photoId);
+                    markerLayers[markerData.id_koordinat].bindPopup(renderPopupContent(markerData));
+                }
+
+            } else {
+                Swal.fire('Gagal!', data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire('Gagal!', 'Terjadi kesalahan jaringan.', 'error');
+        });
     }
 
     function populateKecamatan(selectedKotaKabId, selectedKecamatanId = null) {
@@ -395,40 +445,48 @@
             keteranganData[idJdlKeterangan] = input.value;
         });
 
-        const updatedData = {
-            id_koordinat: document.getElementById('edit_id_koordinat').value,
-            id_sumberdata: document.getElementById('edit_sumberdata').value,
-            id_kotakab: document.getElementById('edit_kotakab').value,
-            id_kec: document.getElementById('edit_kecamatan').value,
-            id_kel: document.getElementById('edit_kelurahan').value,
-            latitude: document.getElementById('edit_latitude').value,
-            longitude: document.getElementById('edit_longitude').value,
-            keterangan: keteranganData
-        };
+        const photosInput = document.getElementById('photos_new');
+        const newPhotos = photosInput.files;
+
+        const formData = new FormData();
+        formData.append('id_koordinat', document.getElementById('edit_id_koordinat').value);
+        formData.append('id_sumberdata', document.getElementById('edit_sumberdata').value);
+        formData.append('id_kotakab', document.getElementById('edit_kotakab').value);
+        formData.append('id_kec', document.getElementById('edit_kecamatan').value);
+        formData.append('id_kel', document.getElementById('edit_kelurahan').value);
+        formData.append('latitude', document.getElementById('edit_latitude').value);
+        formData.append('longitude', document.getElementById('edit_longitude').value);
+        formData.append('keterangan', JSON.stringify(keteranganData));
+        formData.append('csrf_test_name', '<?= csrf_hash() ?>');
+
+        for (let i = 0; i < newPhotos.length; i++) {
+            formData.append('photos_new[]', newPhotos[i]);
+        }
+        
+        document.getElementById('photos_new').value = '';
 
         fetch(`<?= base_url('api/markers/update'); ?>`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '<?= csrf_hash() ?>'
-                },
-                body: JSON.stringify(updatedData)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    Swal.fire('Berhasil!', 'Data berhasil diperbarui.', 'success');
-                    var editModal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
-                    editModal.hide();
-                    loadMarkers();
-                } else {
-                    Swal.fire('Gagal!', 'Terjadi kesalahan saat menyimpan data.', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error saving data:', error);
-                Swal.fire('Gagal!', 'Terjadi kesalahan jaringan.', 'error');
-            });
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                Swal.fire('Berhasil!', data.message, 'success');
+                var editModal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
+                editModal.hide();
+                loadMarkers();
+            } else {
+                Swal.fire('Gagal!', data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving data:', error);
+            Swal.fire('Gagal!', 'Terjadi kesalahan jaringan.', 'error');
+        });
     });
 
     function confirmDelete(id) {
@@ -444,50 +502,38 @@
         }).then((result) => {
             if (result.isConfirmed) {
                 fetch('<?= base_url('koordinat/delete/'); ?>' + id, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'X-CSRF-TOKEN': '<?= csrf_hash() ?>'
-                        }
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        Swal.fire(
-                            'Dihapus!',
-                            'Data telah berhasil dihapus.',
-                            'success'
-                        ).then(() => {
-                            loadMarkers();
-                        });
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        Swal.fire(
-                            'Gagal!',
-                            'Terjadi kesalahan saat menghapus data.',
-                            'error'
-                        );
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': '<?= csrf_hash() ?>'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    Swal.fire(
+                        'Dihapus!',
+                        'Data telah berhasil dihapus.',
+                        'success'
+                    ).then(() => {
+                        loadMarkers();
                     });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    Swal.fire(
+                        'Gagal!',
+                        'Terjadi kesalahan saat menghapus data.',
+                        'error'
+                    );
+                });
             }
         });
-    }
-
-    function openUploadPhotoModal(koordinatId) {
-        const form = document.getElementById('uploadPhotoForm');
-        // Set action form dengan ID koordinat dari marker
-        form.action = `<?= site_url('koordinat/uploadPhotos/'); ?>${koordinatId}`;
-        
-        // Set nilai ID koordinat di input tersembunyi
-        document.getElementById('upload_koordinat_id').value = koordinatId;
-
-        var uploadModal = new bootstrap.Modal(document.getElementById('uploadPhotoModal'));
-        uploadModal.show();
     }
 
     const filterSumberData = document.getElementById('filterSumberData');
@@ -504,48 +550,6 @@
             selectElement.appendChild(option);
         });
     }
-
-    // Tangani pengiriman formulir unggah foto menggunakan JavaScript
-    document.getElementById('uploadPhotoButton').addEventListener('click', function() {
-        const uploadForm = document.getElementById('uploadPhotoForm');
-        const formData = new FormData(uploadForm);
-        
-        // Ambil URL dari atribut action form
-        const url = uploadForm.action;
-
-        fetch(url, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest', // Tambahkan header ini
-                'X-CSRF-TOKEN': '<?= csrf_hash() ?>'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                Swal.fire('Berhasil!', data.message, 'success');
-                
-                // Tutup modal
-                var uploadPhotoModal = bootstrap.Modal.getInstance(document.getElementById('uploadPhotoModal'));
-                uploadPhotoModal.hide();
-
-                // Reset input file
-                document.getElementById('photos').value = '';
-
-                // Perbarui marker di peta
-                loadMarkers(); 
-            } else {
-                // Tampilkan pesan error dari server
-                const errorMessages = typeof data.message === 'object' ? Object.values(data.message).join('<br>') : data.message;
-                Swal.fire('Gagal!', errorMessages, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            Swal.fire('Gagal!', 'Terjadi kesalahan jaringan.', 'error');
-        });
-    });
 
     filterSumberData.addEventListener('change', loadMarkers);
     filterKota.addEventListener('change', function() {
