@@ -216,17 +216,14 @@ class MapController extends BaseController
                     }
                 }
             }
-            
-            // 3. Unggah dan simpan foto baru
-            $uploadedPhotos = $this->request->getFiles();
-            
-            // Periksa apakah ada file dengan nama 'photos_new'
-            if ($uploadedPhotos->hasFile('photos_new')) {
-                $photos = $uploadedPhotos->getFiles('photos_new');
-                $upload_dir = 'uploads/';
-                $photoModel = new \App\Models\M_photo();
 
-                foreach ($photos as $photo) {
+            // 3. Unggah dan simpan foto baru
+            $photosNew = $this->request->getFiles('photos_new');
+            $upload_dir = 'uploads/';
+            $photoModel = new \App\Models\M_photo();
+
+            if ($photosNew && isset($photosNew['photos_new'])) {
+                foreach ($photosNew['photos_new'] as $photo) {
                     if ($photo->isValid() && !$photo->hasMoved()) {
                         $newName = $photo->getRandomName();
                         $photo->move(FCPATH . $upload_dir, $newName);
@@ -242,10 +239,9 @@ class MapController extends BaseController
                     }
                 }
             }
-            
+
             $db->transCommit();
             return $this->response->setJSON(['status' => 'success', 'message' => 'Data berhasil diperbarui.']);
-
         } catch (\Exception $e) {
             $db->transRollback();
             log_message('error', 'Update failed: ' . $e->getMessage());
