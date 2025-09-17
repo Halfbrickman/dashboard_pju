@@ -224,7 +224,8 @@ class MapController extends BaseController
 
             if ($photosNew && isset($photosNew['photos_new'])) {
                 foreach ($photosNew['photos_new'] as $photo) {
-                    if ($photo->isValid() && !$photo->hasMoved()) {
+                    // Tambahkan validasi ukuran file di sini
+                    if ($photo->isValid() && !$photo->hasMoved() && $photo->getSizeByUnit('mb') <= 5) {
                         $newName = $photo->getRandomName();
                         $photo->move(FCPATH . $upload_dir, $newName);
 
@@ -236,6 +237,10 @@ class MapController extends BaseController
                             'file_size' => $photo->getSizeByUnit('kb')
                         ];
                         $photoModel->insert($dataPhoto);
+                    } else {
+                        // Rollback transaksi jika ada file yang gagal validasi atau melebihi 5MB
+                        $db->transRollback();
+                        return $this->response->setJSON(['status' => 'error', 'message' => 'Validasi foto gagal. Pastikan ukuran file tidak lebih dari 5MB.']);
                     }
                 }
             }
@@ -282,7 +287,7 @@ class MapController extends BaseController
                 foreach ($keteranganData as $idJdlKeterangan => $isiKeterangan) {
                     if (!empty($isiKeterangan)) {
                         $dataKeterangan = [
-                            'id_koordinat' => $koordinat_id,
+                            'id_koordinat' => $koordinat_id, // Gunakan ID marker yang baru
                             'id_jdlketerangan' => $idJdlKeterangan,
                             'isi_keterangan' => $isiKeterangan,
                         ];
@@ -295,14 +300,22 @@ class MapController extends BaseController
             $photos = $request->getFileMultiple('photos');
             if ($photos) {
                 foreach ($photos as $photo) {
-                    if ($photo->isValid() && !$photo->hasMoved()) {
+                    // Tambahkan validasi ukuran file di sini
+                    if ($photo->isValid() && !$photo->hasMoved() && $photo->getSizeByUnit('mb') <= 5) {
                         $newName = $photo->getRandomName();
                         $photo->move(FCPATH . 'uploads/photos', $newName);
                         $data_photo = [
                             'id_koordinat' => $koordinat_id, // Gunakan ID marker yang baru
-                            'file_name' => $newName
+                            'file_name' => $newName,
+                            'file_path' => 'uploads/photos/' . $newName,
+                            'file_type' => $photo->getClientMimeType(),
+                            'file_size' => $photo->getSizeByUnit('kb')
                         ];
                         $this->photoModel->insert($data_photo);
+                    } else {
+                        // Rollback transaksi jika ada file yang gagal validasi atau melebihi 5MB
+                        $this->koordinatModel->db->transRollback();
+                        return $this->response->setJSON(['status' => 'error', 'message' => 'Validasi foto gagal. Pastikan ukuran file tidak lebih dari 5MB.']);
                     }
                 }
             }
