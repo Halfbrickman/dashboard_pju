@@ -41,11 +41,12 @@
                             </div>
                             <div class="col-md-3 d-flex align-items-end justify-content-end">
                                 <div class="btn-group">
+                                <?php if (session()->get('role_id') == 1) : ?>
                                     <a href="<?= base_url('koordinat/import'); ?>" class="btn btn-primary" style="height: 40px;">
                                         <i class="fas fa-file-import"></i> Import
                                     </a>
-
-                                    <button type="button" style="height: 40px; " class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                <?php endif; ?>
+                                   <button type="button" style="height: 40px; " class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                                         <i class="fas fa-file-export"></i> Export
                                     </button>
                                     <ul class="dropdown-menu">
