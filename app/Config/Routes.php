@@ -33,7 +33,8 @@ $routes->post('koordinat/save', 'MasterDataController::save');
 $routes->post('koordinat/delete/(:num)', 'MasterDataController::delete/$1');
 $routes->get('koordinat/import', 'KoordinatController::import');
 $routes->post('koordinat/upload', 'KoordinatController::upload');
-$routes->post('koordinat/uploadPhotos/(:num)', 'KoordinatController::uploadPhotos/$1');
+// Rute untuk mengunggah foto tanpa parameter
+$routes->post('koordinat/uploadPhotos', 'KoordinatController::uploadPhotos');
 
 // Rute API untuk dropdown dinamis
 $routes->group('api', function ($routes) {
