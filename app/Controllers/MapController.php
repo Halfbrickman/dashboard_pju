@@ -86,7 +86,7 @@ class MapController extends BaseController
         }
 
         $koordinatIds = array_column($dataKoordinat, 'id_koordinat');
-        
+
         // Pastikan array ID tidak kosong sebelum melakukan query
         $allKeterangan = [];
         if (!empty($koordinatIds)) {
@@ -110,7 +110,7 @@ class MapController extends BaseController
                 'jdl_keterangan' => $keterangan['jdl_keterangan']
             ];
         }
-        
+
         $photosGrouped = [];
         foreach ($allPhotos as $photo) {
             $photosGrouped[$photo['id_koordinat']][] = $photo;
@@ -131,22 +131,22 @@ class MapController extends BaseController
         if (!$request->isAJAX()) {
             return $this->response->setJSON(['status' => 'error', 'message' => 'Invalid request.']);
         }
-    
+
         $photoModel = new \App\Models\M_photo();
         $photo = $photoModel->find($id_photo);
-    
+
         if (!$photo) {
             return $this->response->setJSON(['status' => 'error', 'message' => 'Foto tidak ditemukan.']);
         }
-    
+
         // Dapatkan path file dari database
         $file_path = FCPATH . $photo['file_path'];
-    
+
         // Hapus file fisik dari server jika ada
         if (file_exists($file_path)) {
             unlink($file_path);
         }
-    
+
         // Hapus data foto dari database
         if ($photoModel->delete($id_photo)) {
             return $this->response->setJSON(['status' => 'success', 'message' => 'Foto berhasil dihapus.']);
@@ -227,15 +227,20 @@ class MapController extends BaseController
                     // Aturan validasi yang diperbarui
                     $allowedMimeTypes = ['image/jpeg', 'image/png'];
                     $fileMimeType = $photo->getClientMimeType();
-                    
+
                     if ($photo->isValid() && !$photo->hasMoved() && in_array($fileMimeType, $allowedMimeTypes) && $photo->getSizeByUnit('mb') <= 5) {
-                        $newName = $photo->getRandomName();
+                        // *** AWAL PERUBAHAN UTAMA DI SINI ***
+                        $originalName = $photo->getName();
+                        $cleanedName = preg_replace('/[^A-Za-z0-9_.]/', '_', $originalName);
+                        $newName = str_replace(' ', '_', $cleanedName);
+                        // *** AKHIR PERUBAHAN UTAMA DI SINI ***
+
                         $photo->move(FCPATH . $upload_dir, $newName);
 
                         $dataPhoto = [
                             'id_koordinat' => $id,
                             'file_path' => $upload_dir . $newName,
-                            'file_name' => $photo->getName(),
+                            'nama_photo' => $newName, // Simpan nama file yang telah diubah
                             'file_type' => $fileMimeType,
                             'file_size' => $photo->getSizeByUnit('kb')
                         ];
@@ -273,7 +278,7 @@ class MapController extends BaseController
             'latitude' => $request->getPost('latitude'),
             'longitude' => $request->getPost('longitude'),
         ];
-        
+
         // Validasi data
         if (empty($data_koordinat['latitude']) || empty($data_koordinat['longitude'])) {
             return $this->response->setJSON(['status' => 'error', 'message' => 'Data koordinat tidak lengkap.']);
@@ -311,11 +316,16 @@ class MapController extends BaseController
                     $fileMimeType = $photo->getClientMimeType();
 
                     if ($photo->isValid() && !$photo->hasMoved() && in_array($fileMimeType, $allowedMimeTypes) && $photo->getSizeByUnit('mb') <= 5) {
-                        $newName = $photo->getRandomName();
+                        // *** AWAL PERUBAHAN UTAMA DI SINI ***
+                        $originalName = $photo->getName();
+                        $cleanedName = preg_replace('/[^A-Za-z0-9_.]/', '_', $originalName);
+                        $newName = str_replace(' ', '_', $cleanedName);
+                        // *** AKHIR PERUBAHAN UTAMA DI SINI ***
+
                         $photo->move(FCPATH . 'uploads/photos', $newName);
                         $data_photo = [
                             'id_koordinat' => $koordinat_id,
-                            'file_name' => $newName,
+                            'nama_photo' => $newName, // Simpan nama file yang telah diubah
                             'file_path' => 'uploads/photos/' . $newName,
                             'file_type' => $fileMimeType,
                             'file_size' => $photo->getSizeByUnit('kb')
@@ -331,7 +341,7 @@ class MapController extends BaseController
                     }
                 }
             }
-            
+
             $this->koordinatModel->db->transCommit();
             return $this->response->setJSON(['status' => 'success', 'message' => 'Marker dan foto berhasil disimpan.', 'id_koordinat' => $koordinat_id]);
         } else {
@@ -389,7 +399,7 @@ class MapController extends BaseController
         $id_kotakab = $this->request->getGet('id_kotakab');
         $id_kec = $this->request->getGet('id_kec');
         $id_kel = $this->request->getGet('id_kel');
-        
+
         $builder = $this->koordinatModel->select('koordinat.*, sumber_data.nama_sumber, isi_keterangan.isi_keterangan, isi_keterangan.id_koordinat')
             ->join('sumber_data', 'sumber_data.id_sumberdata = koordinat.id_sumberdata', 'left')
             ->join('isi_keterangan', 'isi_keterangan.id_koordinat = koordinat.id_koordinat', 'left');
@@ -406,7 +416,7 @@ class MapController extends BaseController
         if ($id_kel) {
             $builder->where('koordinat.id_kel', $id_kel);
         }
-        
+
         $koordinatData = $builder->findAll();
 
         $kmlContent = '<?xml version="1.0" encoding="UTF-8"?>';
@@ -462,7 +472,7 @@ class MapController extends BaseController
         }
 
         $uniqueSumberIds = array_unique(array_column($koordinatData, 'id_sumberdata'));
-        
+
         $uniqueKoordIds = array_column($koordinatData, 'id_koordinat');
         $allKeterangan = $this->isiKeteranganModel
             ->select('isi_keterangan.isi_keterangan, judul_keterangan.jdl_keterangan, isi_keterangan.id_koordinat')
@@ -480,7 +490,7 @@ class MapController extends BaseController
             ->orderBy('id_jdlketerangan', 'ASC')
             ->findAll();
         $dynamicHeaders = array_column($allJudulKeterangan, 'jdl_keterangan');
-        
+
         $processedData = [];
         foreach ($koordinatData as $koordinat) {
             $rowData = $koordinat;
