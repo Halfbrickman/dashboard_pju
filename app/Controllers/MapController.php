@@ -342,10 +342,44 @@ class MapController extends BaseController
 
     public function deleteMarker($id)
     {
-        if ($this->koordinatModel->delete($id)) {
-            return $this->response->setJSON(['status' => 'success', 'message' => 'Data berhasil dihapus.']);
-        } else {
-            return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal menghapus data.']);
+        $request = \Config\Services::request();
+        // Pastikan permintaan datang dari AJAX
+        if (!$request->isAJAX()) {
+            // Mengembalikan respons JSON, bukan redirect
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Invalid request.', 'redirect' => false]);
+        }
+
+        $db = \Config\Database::connect();
+        $db->transBegin();
+
+        try {
+            // Hapus foto terkait terlebih dahulu
+            $photos = $this->photoModel->where('id_koordinat', $id)->findAll();
+            foreach ($photos as $photo) {
+                $file_path = FCPATH . $photo['file_path'];
+                if (file_exists($file_path)) {
+                    unlink($file_path);
+                }
+                $this->photoModel->delete($photo['id_photo']);
+            }
+
+            // Hapus keterangan terkait
+            $this->isiKeteranganModel->where('id_koordinat', $id)->delete();
+
+            // Hapus marker utama
+            if ($this->koordinatModel->delete($id)) {
+                $db->transCommit();
+                // Mengembalikan respons JSON yang sukses
+                return $this->response->setJSON(['status' => 'success', 'message' => 'Data berhasil dihapus.']);
+            } else {
+                $db->transRollback();
+                // Mengembalikan respons JSON yang gagal
+                return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal menghapus data.']);
+            }
+        } catch (\Exception $e) {
+            $db->transRollback();
+            log_message('error', 'Delete failed: ' . $e->getMessage());
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal menghapus data: ' . $e->getMessage()]);
         }
     }
 

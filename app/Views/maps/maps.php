@@ -103,10 +103,10 @@
                     <hr>
                     <h6>Keterangan Tambahan</h6>
                     <div id="additional-details-container"></div>
-                    
+
                     <h6>Foto-foto</h6>
                     <div id="photos-edit-container">
-                        </div>
+                    </div>
                     <hr>
                     <h6>Unggah Foto Baru</h6>
                     <div class="mb-3">
@@ -175,7 +175,7 @@
             });
             popupContent += `</div><hr>`;
         }
-        
+
         if (isAdmin) {
             popupContent += `
                 <button onclick="openEditModal('${item.id_koordinat}')" class="btn btn-warning btn-sm" style="border-radius: 10px; margin-right: 5px;">
@@ -220,7 +220,7 @@
             })
             .then(data => {
                 console.log('Data yang diterima:', data);
-                
+
                 allMarkersData = data;
                 allMarkersData.forEach(item => {
                     const lat = parseFloat(item.latitude);
@@ -309,7 +309,7 @@
 
         const photosContainer = document.getElementById('photos-edit-container');
         photosContainer.innerHTML = '';
-        
+
         if (item.photos && item.photos.length > 0) {
             photosContainer.innerHTML = `
             <div class="photo-gallery d-flex flex-wrap gap-2 mb-3">
@@ -350,36 +350,36 @@
 
     function deletePhoto(photoId) {
         fetch(`<?= base_url('api/photo/delete'); ?>/${photoId}`, {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': '<?= csrf_hash() ?>'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                Swal.fire('Terhapus!', data.message, 'success');
-                
-                const photoElement = document.getElementById(`photo-${photoId}`);
-                if (photoElement) {
-                    photoElement.remove();
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': '<?= csrf_hash() ?>'
                 }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    Swal.fire('Terhapus!', data.message, 'success');
 
-                const markerData = allMarkersData.find(m => m.photos.some(p => p.id_photo == photoId));
-                if(markerData) {
-                    markerData.photos = markerData.photos.filter(p => p.id_photo != photoId);
-                    markerLayers[markerData.id_koordinat].bindPopup(renderPopupContent(markerData));
+                    const photoElement = document.getElementById(`photo-${photoId}`);
+                    if (photoElement) {
+                        photoElement.remove();
+                    }
+
+                    const markerData = allMarkersData.find(m => m.photos.some(p => p.id_photo == photoId));
+                    if (markerData) {
+                        markerData.photos = markerData.photos.filter(p => p.id_photo != photoId);
+                        markerLayers[markerData.id_koordinat].bindPopup(renderPopupContent(markerData));
+                    }
+
+                } else {
+                    Swal.fire('Gagal!', data.message, 'error');
                 }
-
-            } else {
-                Swal.fire('Gagal!', data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            Swal.fire('Gagal!', 'Terjadi kesalahan jaringan.', 'error');
-        });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire('Gagal!', 'Terjadi kesalahan jaringan.', 'error');
+            });
     }
 
     function populateKecamatan(selectedKotaKabId, selectedKecamatanId = null) {
@@ -391,7 +391,7 @@
             fetch(`<?= base_url('api/kecamatan_by_kotakab'); ?>?id_kotakab=${selectedKotaKabId}`)
                 .then(response => response.json())
                 .then(data => {
-                    allKecamatan = data; 
+                    allKecamatan = data;
                     allKecamatan.forEach(kecamatan => {
                         const newOption = document.createElement('option');
                         newOption.value = kecamatan.id_kec;
@@ -462,78 +462,89 @@
         for (let i = 0; i < newPhotos.length; i++) {
             formData.append('photos_new[]', newPhotos[i]);
         }
-        
+
         document.getElementById('photos_new').value = '';
 
         fetch(`<?= base_url('api/markers/update'); ?>`, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                Swal.fire('Berhasil!', data.message, 'success');
-                var editModal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
-                editModal.hide();
-                loadMarkers();
-            } else {
-                Swal.fire('Gagal!', data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error saving data:', error);
-            Swal.fire('Gagal!', 'Terjadi kesalahan jaringan.', 'error');
-        });
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    Swal.fire('Berhasil!', data.message, 'success');
+                    var editModal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
+                    editModal.hide();
+                    loadMarkers();
+                } else {
+                    Swal.fire('Gagal!', data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving data:', error);
+                Swal.fire('Gagal!', 'Terjadi kesalahan jaringan.', 'error');
+            });
     });
 
     function confirmDelete(id) {
         Swal.fire({
-            title: 'Apakah Anda yakin?',
-            text: "Anda tidak akan dapat mengembalikan ini!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Ya, hapus!',
-            cancelButtonText: 'Batal'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                fetch('<?= base_url('koordinat/delete/'); ?>' + id, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': '<?= csrf_hash() ?>'
-                    }
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    Swal.fire(
-                        'Dihapus!',
-                        'Data telah berhasil dihapus.',
-                        'success'
-                    ).then(() => {
-                        loadMarkers();
-                    });
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    Swal.fire(
-                        'Gagal!',
-                        'Terjadi kesalahan saat menghapus data.',
-                        'error'
-                    );
-                });
-            }
-        });
+                title: 'Apakah Anda yakin?',
+                text: "Anda tidak akan dapat mengembalikan ini!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Ya, hapus!',
+                cancelButtonText: 'Batal'
+            })
+            .then((result) => {
+                if (result.isConfirmed) {
+                    fetch('<?= base_url('api/koordinat/delete/'); ?>' + id, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': '<?= csrf_hash() ?>'
+                            }
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.json().then(errorData => {
+                                    throw new Error(errorData.message || 'Network response was not ok');
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.status === 'success') {
+                                Swal.fire(
+                                    'Dihapus!',
+                                    'Data telah berhasil dihapus.',
+                                    'success'
+                                ).then(() => {
+                                    loadMarkers();
+                                });
+                            } else {
+                                Swal.fire(
+                                    'Gagal!',
+                                    data.message,
+                                    'error'
+                                );
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            Swal.fire(
+                                'Gagal!',
+                                'Terjadi kesalahan saat menghapus data. ' + error.message,
+                                'error'
+                            );
+                        });
+                }
+            });
     }
 
     const filterSumberData = document.getElementById('filterSumberData');

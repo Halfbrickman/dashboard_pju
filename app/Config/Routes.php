@@ -41,7 +41,7 @@ $routes->group('api', function ($routes) {
     // --- Rute untuk Peta ---
     $routes->get('markers', 'MapController::getMarkerData');
     $routes->post('markers/update', 'MapController::updateMarker');
-    $routes->post('photo/delete/(:num)', 'MapController::deletePhoto/$1');
+    $routes->post('koordinat/delete/(:num)', 'MapController::deleteMarker/$1');
 
     // --- Rute untuk Data Master (yang sudah ada sebelumnya) ---
     $routes->get('kecamatan_by_kotakab', 'MapController::getKecamatan');
