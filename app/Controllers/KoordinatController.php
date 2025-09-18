@@ -22,6 +22,8 @@ class KoordinatController extends BaseController
             . view('Template/footer');
     }
 
+    // File: app/Controllers/NamaControllerAnda.php
+
     public function upload()
     {
         $file = $this->request->getFile('excel_file');
@@ -46,6 +48,7 @@ class KoordinatController extends BaseController
             $sumberDataModel = new M_sumberData();
             $judulKeteranganModel = new M_judulKeterangan();
             $isiKeteranganModel = new M_isiKeterangan();
+            $photoModel = new M_photo(); // --- 1. TAMBAHKAN INI ---
 
             // Caching data master
             $sumberDataMap = array_change_key_case(array_column($sumberDataModel->findAll(), 'id_sumberdata', 'nama_sumber'), CASE_LOWER);
@@ -63,7 +66,9 @@ class KoordinatController extends BaseController
                 $header[] = strtolower($cell->getValue());
             }
 
-            $staticHeaders = ['latitude', 'longitude', 'sumber data', 'kota/kab', 'kecamatan', 'kelurahan'];
+            // --- 2. UBAH BAGIAN INI ---
+            // Tambahkan 'nama photo' ke header statis agar tidak diproses sebagai 'keterangan'
+            $staticHeaders = ['latitude', 'longitude', 'sumber data', 'kota/kab', 'kecamatan', 'kelurahan', 'nama photo'];
             $dynamicHeaders = array_diff($header, $staticHeaders);
 
             $importedCount = 0;
@@ -108,6 +113,25 @@ class KoordinatController extends BaseController
                 ]);
                 $newKoordinatId = $koordinatModel->getInsertID();
 
+                // --- 3. TAMBAHKAN BLOK KODE INI ---
+                // Proses untuk menyimpan nama foto
+                $namaPhotoValue = $rowData['nama photo'] ?? null;
+                if (!empty($namaPhotoValue)) {
+                    // Memungkinkan beberapa nama foto dipisah dengan koma (,)
+                    $photoNames = explode(',', $namaPhotoValue);
+                    foreach ($photoNames as $photoName) {
+                        $trimmedName = trim($photoName);
+                        if (!empty($trimmedName)) {
+                            $photoModel->insert([
+                                'id_koordinat' => $newKoordinatId,
+                                'nama_photo'  => $trimmedName, // Menyimpan nama asli file
+                                'file_path'   => 'uploads/' . $trimmedName // Asumsi path penyimpanan
+                            ]);
+                        }
+                    }
+                }
+                // --- Akhir dari blok kode baru ---
+
                 foreach ($dynamicHeaders as $dynHeader) {
                     $idJdlKeterangan = $judulKeteranganMap[$dynHeader] ?? null;
                     $isiKeterangan = $rowData[$dynHeader] ?? null;
@@ -131,6 +155,10 @@ class KoordinatController extends BaseController
                 return redirect()->to('/koordinat/import')->with('success', "Berhasil mengimpor {$importedCount} data.");
             }
         } catch (\Exception $e) {
+            // Jika ada error, rollback transaksi
+            if (isset($koordinatModel) && $koordinatModel->db->transStatus() !== false) {
+                $koordinatModel->db->transRollback();
+            }
             return redirect()->to('/koordinat/import')->with('error', 'Terjadi error saat memproses file: ' . $e->getMessage());
         }
     }
@@ -167,7 +195,7 @@ class KoordinatController extends BaseController
         $uploadedCount = 0;
 
         // Tentukan folder penyimpanan yang dapat diakses publik
-        $uploadPath = 'uploads/koordinat_photos/';
+        $uploadPath = 'uploads/';
 
         foreach ($files['photos'] as $file) {
             if ($file->isValid() && !$file->hasMoved()) {

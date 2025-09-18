@@ -6,7 +6,7 @@ class M_photo extends Model
 {
     protected $table = 'photo';
     protected $primaryKey = 'id_photo';
-    protected $allowedFields = ['id_koordinat', 'file_path'];
+    protected $allowedFields = ['id_koordinat', 'file_path', 'nama_photo'];
 
     protected $useTimestamps = true;
     protected $createdField  = 'created_at';
