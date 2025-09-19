@@ -67,6 +67,8 @@ $routes->get('map/exportKML', 'MapController::exportKML');
 $routes->get('map/exportExcel', 'MapController::exportExcel');
 $routes->get('map/exportPDF', 'MapController::exportPDF');
 
+$routes->get('galeri', 'GaleriController::index');
+
 // Rute untuk Auth
 $routes->get('/login', 'AuthController::login');
 $routes->post('/auth/processLogin', 'AuthController::processLogin');

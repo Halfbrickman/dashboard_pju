@@ -38,6 +38,11 @@
                     <i class="align-middle" data-feather="info"></i> <span class="align-middle">Master Keterangan</span>
                 </a>
             </li>
+            <li class="sidebar-item <?= (strpos(current_url(), 'galeri') !== false) ? 'active' : '' ?>">
+                <a class="sidebar-link" href="<?= base_url('galeri') ?>">
+                    <i class="align-middle" data-feather="image"></i> <span class="align-middle">Galeri Foto</span>
+                </a>
+            </li>
             <?php endif; ?>
             <?php endif; ?>
         </ul>
