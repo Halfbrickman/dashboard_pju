@@ -31,6 +31,7 @@ class MasterDataController extends Controller
     public function index()
     {
         $sumberdataId = $this->request->getVar('sumberdata');
+        $keyword = $this->request->getVar('keyword'); // **TAMBAHKAN INI**
         
         $koordinatQuery = $this->koordinatModel->select('koordinat.*, kecamatan.nama_kec, kelurahan.nama_kel, sumber_data.nama_sumber, kota_kab.nama_kotakab')
                                              ->join('kecamatan', 'kecamatan.id_kec = koordinat.id_kec', 'left')
@@ -42,13 +43,25 @@ class MasterDataController extends Controller
             $koordinatQuery->where('koordinat.id_sumberdata', $sumberdataId);
         }
 
+        if ($keyword) {
+            $koordinatQuery ->groupStart()
+                            ->orLike('koordinat.latitude', $keyword)
+                            ->orLike('koordinat.longitude', $keyword)
+                            ->orLike('kota_kab.nama_kotakab', $keyword)
+                            ->orLike('kecamatan.nama_kec', $keyword)
+                            ->orLike('kelurahan.nama_kel', $keyword)
+                            ->orLike('sumber_data.nama_sumber', $keyword)
+                            ->groupEnd();
+        }
+
         $data = [
             'title'              => 'Data Koordinat',
             'koordinat'          => $koordinatQuery->paginate(10, 'default'),
             'pager'              => $this->koordinatModel->pager,
             'sumberdata'         => $this->sumberDataModel->findAll(),
             'judulKeterangan'    => $this->judulKeteranganModel->findAll(),
-            'selectedSumberdata' => $sumberdataId
+            'selectedSumberdata' => $sumberdataId,
+            'keyword'            => $keyword, // **TAMBAHKAN INI untuk mempertahankan nilai input search**
         ];
 
         return view('Template/header', $data)
@@ -176,5 +189,26 @@ class MasterDataController extends Controller
     {
         $judulKeterangan = $this->judulKeteranganModel->where('id_sumberdata', $id_sumberdata)->findAll();
         return $this->response->setJSON($judulKeterangan);
+    }
+
+    public function deleteMultiple()
+    {
+        // Tangkap data id yang dikirimkan dari form
+        $ids = $this->request->getPost('selected');
+
+        if (!empty($ids) && is_array($ids)) {
+            // Hapus data keterangan terkait terlebih dahulu
+            // Menggunakan whereIn untuk menghapus semua data dengan ID yang cocok
+            $this->isiKeteranganModel->whereIn('id_koordinat', $ids)->delete();
+            
+            // Hapus data koordinat
+            $this->koordinatModel->whereIn('id_koordinat', $ids)->delete();
+            
+            session()->setFlashdata('success', 'Data yang dipilih berhasil dihapus!');
+        } else {
+            session()->setFlashdata('warning', 'Tidak ada data yang dipilih untuk dihapus.');
+        }
+
+        return redirect()->to('/koordinat');
     }
 }

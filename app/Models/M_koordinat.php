@@ -45,8 +45,8 @@ class M_koordinat extends Model
             ->join('kelurahan', 'kelurahan.id_kel = koordinat.id_kel', 'left')
             ->join('sumber_data', 'sumber_data.id_sumberdata = koordinat.id_sumberdata', 'left')
             ->join('kota_kab', 'kota_kab.id_kotakab = koordinat.id_kotakab', 'left')
-            ->get() // Mengambil data dari query builder
-            ->getResultArray(); // Mengubah hasil ke bentuk array multidimensi
+            ->get() 
+            ->getResultArray(); 
     }
 
     public function getFilteredMarkers($sumber_data_id, $id_kotakab, $id_kec, $id_kel)

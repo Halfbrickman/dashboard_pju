@@ -40,21 +40,20 @@
                                 </div>
                             </div>
                             <div class="col-md-3 d-flex align-items-end justify-content-end">
-                                <div class="d-flex gap-2">
+                                <div class="btn-group">
+                                <?php if (session()->get('role_id') == 1) : ?>
                                     <a href="<?= base_url('koordinat/import'); ?>" class="btn btn-primary" style="height: 40px;">
-                                        <i class="fas fa-file-import"></i> Impor Data
+                                        <i class="fas fa-file-import"></i> Import
                                     </a>
-
-                                    <div class="btn-group">
-                                        <button type="button" style="height: 40px; " class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                            <i class="fas fa-file-export"></i> Ekspor Data
-                                        </button>
-                                        <ul class="dropdown-menu">
-                                            <li><a class="dropdown-item" id="exportKML" href="<?= base_url('map/exportKML'); ?>">Format KML</a></li>
-                                            <li><a class="dropdown-item" id="exportExcel" href="<?= base_url('map/exportExcel'); ?>">Format Excel (.xlsx)</a></li>
-                                            <li><a class="dropdown-item" id="exportPDF" href="<?= base_url('map/exportPDF'); ?>">Format PDF</a></li>
-                                        </ul>
-                                    </div>
+                                <?php endif; ?>
+                                   <button type="button" style="height: 40px; " class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-file-export"></i> Export
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" id="exportKML" href="<?= base_url('map/exportKML'); ?>">Format KML</a></li>
+                                        <li><a class="dropdown-item" id="exportExcel" href="<?= base_url('map/exportExcel'); ?>">Format Excel (.xlsx)</a></li>
+                                        <li><a class="dropdown-item" id="exportPDF" href="<?= base_url('map/exportPDF'); ?>">Format PDF</a></li>
+                                    </ul>
                                 </div>
                             </div>
                         </div>
@@ -105,6 +104,15 @@
                     <hr>
                     <h6>Keterangan Tambahan</h6>
                     <div id="additional-details-container"></div>
+
+                    <h6>Foto-foto</h6>
+                    <div id="photos-edit-container">
+                    </div>
+                    <hr>
+                    <h6>Unggah Foto Baru</h6>
+                    <div class="mb-3">
+                        <input type="file" name="photos_new[]" id="photos_new" class="form-control" multiple>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -121,7 +129,6 @@
     let allMarkersData = [];
     let markerLayers = {};
 
-    // Data dari PHP sekarang tersedia di JavaScript
     const allSumberData = <?= json_encode($sumber_data); ?>;
     const allKotaKab = <?= json_encode($kotakab); ?>;
     let allKecamatan = [];
@@ -145,21 +152,37 @@
 
     function renderPopupContent(item) {
         let popupContent = `
-            <strong>Sumber Data:</strong> ${item.nama_sumber}<br>
+            <strong>Sumber Data:</strong> ${item.nama_sumber || '-'}<br>
             <strong>Kota/Kab:</strong> ${item.nama_kotakab || '-'}<br>
             <strong>Kecamatan:</strong> ${item.nama_kec || '-'}<br>
             <strong>Kelurahan:</strong> ${item.nama_kel || '-'}<br>
-            <strong>Latitude:</strong> ${item.latitude}<br>
-            <strong>Longitude:</strong> ${item.longitude}<br>
+            <strong>Latitude:</strong> ${item.latitude || '-'}<br>
+            <strong>Longitude:</strong> ${item.longitude || '-'}<br>
             <hr>
         `;
 
+        if (item.photos && item.photos.length > 0) {
+            popupContent += `
+                <h6>Foto-foto:</h6>
+                <div class="photo-gallery" style="display: flex; flex-wrap: wrap; gap: 5px; max-height: 150px; overflow-y: auto;">
+            `;
+            item.photos.forEach(photo => {
+                const photoUrl = `<?= base_url('/'); ?>${photo.file_path}`;
+                popupContent += `
+                    <a href="${photoUrl}" target="_blank">
+                        <img src="${photoUrl}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 5px; cursor: pointer;">
+                    </a>
+                `;
+            });
+            popupContent += `</div><hr>`;
+        }
+
         if (isAdmin) {
             popupContent += `
-                <button onclick="openEditModal(${item.id_koordinat})" class="btn btn-warning btn-sm" style="border-radius: 10px; margin-right: 5px;">
+                <button onclick="openEditModal('${item.id_koordinat}')" class="btn btn-warning btn-sm" style="border-radius: 10px; margin-right: 5px;">
                     <i class="fas fa-edit"></i> Edit
                 </button>
-                <button class="btn btn-danger btn-sm" onclick="confirmDelete(${item.id_koordinat})" style="border-radius: 10px;">
+                <button class="btn btn-danger btn-sm" onclick="confirmDelete('${item.id_koordinat}')" style="border-radius: 10px;">
                     <i class="fas fa-trash-alt"></i> Hapus
                 </button>
                 <br><br>
@@ -167,8 +190,9 @@
         }
 
         popupContent += `
-            <a href="https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}" target="_blank" class="btn btn-info btn-sm">Lihat di Google Maps</a>
+            <a href="http://maps.google.com/maps?q=${item.latitude},${item.longitude}" target="_blank" class="btn btn-info btn-sm">Lihat di Google Maps</a>
         `;
+
         return popupContent;
     }
 
@@ -189,25 +213,39 @@
         if (idKel) url += `&id_kel=${idKel}`;
 
         fetch(url)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Data yang diterima:', data);
+
                 allMarkersData = data;
                 allMarkersData.forEach(item => {
-                    if (item.latitude && item.longitude) {
+                    const lat = parseFloat(item.latitude);
+                    const lng = parseFloat(item.longitude);
+
+                    if (!isNaN(lat) && !isNaN(lng)) {
                         var color = item.warna;
                         var customIcon = createCustomIcon(color);
-                        var marker = L.marker([item.latitude, item.longitude], {
+                        var marker = L.marker([lat, lng], {
                             icon: customIcon
                         });
 
                         markerLayers[item.id_koordinat] = marker;
                         marker.bindPopup(renderPopupContent(item));
                         markers.addLayer(marker);
+                    } else {
+                        console.warn(`Data tidak valid untuk item dengan id_koordinat: ${item.id_koordinat}`);
                     }
                 });
                 map.addLayer(markers);
             })
-            .catch(error => console.error('Error fetching data:', error));
+            .catch(error => {
+                console.error('Error fetching data:', error);
+            });
     }
 
     function openEditModal(id) {
@@ -263,15 +301,86 @@
                     <label for="edit_keterangan_${judul.id_jdlketerangan}" class="form-label">${judul.jdl_keterangan}:</label>
                     <input type="text" id="edit_keterangan_${judul.id_jdlketerangan}" name="keterangan[${judul.id_jdlketerangan}]" class="form-control" value="${value}">
                 </div>
-            `;
+                `;
                 additionalDetailsContainer.innerHTML += detailHtml;
             });
         } else {
             additionalDetailsContainer.innerHTML = `<p class="text-muted">Tidak ada keterangan tambahan untuk sumber data ini.</p>`;
         }
 
+        const photosContainer = document.getElementById('photos-edit-container');
+        photosContainer.innerHTML = '';
+
+        if (item.photos && item.photos.length > 0) {
+            photosContainer.innerHTML = `
+            <div class="photo-gallery d-flex flex-wrap gap-2 mb-3">
+                ${item.photos.map(photo => `
+                    <div id="photo-${photo.id_photo}" class="position-relative">
+                        <img src="<?= base_url(); ?>${photo.file_path}" class="img-thumbnail" style="width: 100px; height: 100px; object-fit: cover;">
+                        <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 p-1" style="font-size: 0.75rem; border-radius: 50%;" 
+                                onclick="confirmDeletePhoto('${photo.id_photo}')">
+                            ×
+                        </button>
+                    </div>
+                `).join('')}
+            </div>`;
+        } else {
+            photosContainer.innerHTML = `<p class="text-muted">Tidak ada foto terunggah.</p>`;
+        }
+
         var editModal = new bootstrap.Modal(document.getElementById('editModal'));
         editModal.show();
+    }
+
+    function confirmDeletePhoto(photoId) {
+        Swal.fire({
+            title: 'Apakah Anda yakin?',
+            text: "Anda akan menghapus foto ini secara permanen!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Ya, hapus!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                deletePhoto(photoId);
+            }
+        });
+    }
+
+    function deletePhoto(photoId) {
+        fetch(`<?= base_url('api/photo/delete'); ?>/${photoId}`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': '<?= csrf_hash() ?>'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    Swal.fire('Terhapus!', data.message, 'success');
+
+                    const photoElement = document.getElementById(`photo-${photoId}`);
+                    if (photoElement) {
+                        photoElement.remove();
+                    }
+
+                    const markerData = allMarkersData.find(m => m.photos.some(p => p.id_photo == photoId));
+                    if (markerData) {
+                        markerData.photos = markerData.photos.filter(p => p.id_photo != photoId);
+                        markerLayers[markerData.id_koordinat].bindPopup(renderPopupContent(markerData));
+                    }
+
+                } else {
+                    Swal.fire('Gagal!', data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire('Gagal!', 'Terjadi kesalahan jaringan.', 'error');
+            });
     }
 
     function populateKecamatan(selectedKotaKabId, selectedKecamatanId = null) {
@@ -283,7 +392,7 @@
             fetch(`<?= base_url('api/kecamatan_by_kotakab'); ?>?id_kotakab=${selectedKotaKabId}`)
                 .then(response => response.json())
                 .then(data => {
-                    allKecamatan = data; // Simpan data ke variabel global
+                    allKecamatan = data;
                     allKecamatan.forEach(kecamatan => {
                         const newOption = document.createElement('option');
                         newOption.value = kecamatan.id_kec;
@@ -306,7 +415,7 @@
             fetch(`<?= base_url('api/kelurahan_by_kecamatan'); ?>?id_kec=${selectedKecamatanId}`)
                 .then(response => response.json())
                 .then(data => {
-                    allKelurahan = data; // Simpan data ke variabel global
+                    allKelurahan = data;
                     allKelurahan.forEach(kelurahan => {
                         const newOption = document.createElement('option');
                         newOption.value = kelurahan.id_kel;
@@ -337,34 +446,42 @@
             keteranganData[idJdlKeterangan] = input.value;
         });
 
-        const updatedData = {
-            id_koordinat: document.getElementById('edit_id_koordinat').value,
-            id_sumberdata: document.getElementById('edit_sumberdata').value,
-            id_kotakab: document.getElementById('edit_kotakab').value,
-            id_kec: document.getElementById('edit_kecamatan').value,
-            id_kel: document.getElementById('edit_kelurahan').value,
-            latitude: document.getElementById('edit_latitude').value,
-            longitude: document.getElementById('edit_longitude').value,
-            keterangan: keteranganData
-        };
+        const photosInput = document.getElementById('photos_new');
+        const newPhotos = photosInput.files;
+
+        const formData = new FormData();
+        formData.append('id_koordinat', document.getElementById('edit_id_koordinat').value);
+        formData.append('id_sumberdata', document.getElementById('edit_sumberdata').value);
+        formData.append('id_kotakab', document.getElementById('edit_kotakab').value);
+        formData.append('id_kec', document.getElementById('edit_kecamatan').value);
+        formData.append('id_kel', document.getElementById('edit_kelurahan').value);
+        formData.append('latitude', document.getElementById('edit_latitude').value);
+        formData.append('longitude', document.getElementById('edit_longitude').value);
+        formData.append('keterangan', JSON.stringify(keteranganData));
+        formData.append('csrf_test_name', '<?= csrf_hash() ?>');
+
+        for (let i = 0; i < newPhotos.length; i++) {
+            formData.append('photos_new[]', newPhotos[i]);
+        }
+
+        document.getElementById('photos_new').value = '';
 
         fetch(`<?= base_url('api/markers/update'); ?>`, {
                 method: 'POST',
+                body: formData,
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '<?= csrf_hash() ?>'
-                },
-                body: JSON.stringify(updatedData)
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
             })
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    Swal.fire('Berhasil!', 'Data berhasil diperbarui.', 'success');
+                    Swal.fire('Berhasil!', data.message, 'success');
                     var editModal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
                     editModal.hide();
                     loadMarkers();
                 } else {
-                    Swal.fire('Gagal!', 'Terjadi kesalahan saat menyimpan data.', 'error');
+                    Swal.fire('Gagal!', data.message, 'error');
                 }
             })
             .catch(error => {
@@ -375,49 +492,60 @@
 
     function confirmDelete(id) {
         Swal.fire({
-            title: 'Apakah Anda yakin?',
-            text: "Anda tidak akan dapat mengembalikan ini!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Ya, hapus!',
-            cancelButtonText: 'Batal'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                fetch('<?= base_url('koordinat/delete/'); ?>' + id, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'X-CSRF-TOKEN': '<?= csrf_hash() ?>'
-                        }
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        Swal.fire(
-                            'Dihapus!',
-                            'Data telah berhasil dihapus.',
-                            'success'
-                        ).then(() => {
-                            loadMarkers();
+                title: 'Apakah Anda yakin?',
+                text: "Anda tidak akan dapat mengembalikan ini!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Ya, hapus!',
+                cancelButtonText: 'Batal'
+            })
+            .then((result) => {
+                if (result.isConfirmed) {
+                    fetch('<?= base_url('api/koordinat/delete/'); ?>' + id, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': '<?= csrf_hash() ?>'
+                            }
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.json().then(errorData => {
+                                    throw new Error(errorData.message || 'Network response was not ok');
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.status === 'success') {
+                                Swal.fire(
+                                    'Dihapus!',
+                                    'Data telah berhasil dihapus.',
+                                    'success'
+                                ).then(() => {
+                                    loadMarkers();
+                                });
+                            } else {
+                                Swal.fire(
+                                    'Gagal!',
+                                    data.message,
+                                    'error'
+                                );
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            Swal.fire(
+                                'Gagal!',
+                                'Terjadi kesalahan saat menghapus data. ' + error.message,
+                                'error'
+                            );
                         });
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        Swal.fire(
-                            'Gagal!',
-                            'Terjadi kesalahan saat menghapus data.',
-                            'error'
-                        );
-                    });
-            }
-        });
+                }
+            });
     }
 
     const filterSumberData = document.getElementById('filterSumberData');
@@ -425,7 +553,6 @@
     const filterKecamatan = document.getElementById('filterKecamatan');
     const filterKelurahan = document.getElementById('filterKelurahan');
 
-    // Fungsi untuk mengisi ulang dropdown
     function populateSelect(selectElement, data, placeholder, valueKey, textKey) {
         selectElement.innerHTML = `<option value="">${placeholder}</option>`;
         data.forEach(item => {
