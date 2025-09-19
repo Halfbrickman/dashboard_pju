@@ -36,12 +36,17 @@ $routes->post('koordinat/upload', 'KoordinatController::upload');
 // Rute untuk mengunggah foto tanpa parameter
 $routes->post('koordinat/uploadPhotos', 'KoordinatController::uploadPhotos');
 
+// **INI PERUBAHAN UTAMA:** Pindahkan rute delete_multiple ke sini
+$routes->post('koordinat/delete_multiple', 'MasterDataController::deleteMultiple');
+
+
 // Rute API untuk dropdown dinamis
 $routes->group('api', function ($routes) {
 
     // --- Rute untuk Peta ---
     $routes->get('markers', 'MapController::getMarkerData');
     $routes->post('markers/update', 'MapController::updateMarker');
+    // Hapus baris yang salah di sini: $routes->post('koordinat/delete_multiple', 'MasterDataController::deleteMultiple');
     $routes->post('koordinat/delete/(:num)', 'MapController::deleteMarker/$1');
     // Rute untuk menghapus foto
     $routes->post('photo/delete/(:num)', 'MapController::deletePhoto/$1');
