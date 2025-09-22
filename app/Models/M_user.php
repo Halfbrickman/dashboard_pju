@@ -22,7 +22,17 @@ class M_user extends Model
     protected $updatedField  = 'updated_at';
 
     // Validation
-    protected $validationRules    = [];
-    protected $validationMessages = [];
-    protected $skipValidation     = false;
+    protected $validationRules      = [];
+    protected $validationMessages   = [];
+    protected $skipValidation       = false;
+
+    // Tambahkan method ini untuk mengambil data pengguna bersama nama role
+    public function getAllUsersWithRole()
+    {
+        return $this->db->table('users')
+                        ->select('users.*, roles.nama_roles') // Ubah 'role_name' menjadi 'nama_roles'
+                        ->join('roles', 'roles.id = users.role_id')
+                        ->get()
+                        ->getResultArray();
+    }
 }

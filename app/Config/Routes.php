@@ -110,3 +110,11 @@ $routes->group('', ['filter' => 'admin'], function ($routes) {
     $routes->post('judul-keterangan/save', 'JudulKeterangan::save');
     $routes->post('judul-keterangan/delete/(:num)', 'JudulKeterangan::delete/$1');
 });
+
+// Tambahkan route ini di app/Config/Routes.php
+$routes->get('users', 'UserController::index');
+$routes->get('users/create', 'UserController::create');
+$routes->post('users/save', 'UserController::save');
+$routes->get('users/edit/(:num)', 'UserController::edit/$1');
+$routes->post('users/update/(:num)', 'UserController::update/$1');
+$routes->get('users/delete/(:num)', 'UserController::delete/$1');

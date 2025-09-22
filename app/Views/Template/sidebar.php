@@ -43,6 +43,13 @@
                     <i class="align-middle" data-feather="image"></i> <span class="align-middle">Galeri Foto</span>
                 </a>
             </li>
+            <?php if (session()->get('role_id') == 1) : ?>
+            <li class="sidebar-item <?= (strpos(current_url(), 'users') !== false) ? 'active' : '' ?>">
+                <a class="sidebar-link" href="<?= base_url('users') ?>">
+                    <i class="align-middle" data-feather="users"></i> <span class="align-middle">Manajemen Pengguna</span>
+                </a>
+            </li>
+            <?php endif; ?>
             <?php endif; ?>
             <?php endif; ?>
         </ul>
