@@ -18,14 +18,20 @@ class UserController extends Controller
     public function index()
     {
         $data['users'] = $this->userModel->getAllUsersWithRole();
-        return view('users/user_list', $data);
+        return view('Template/header')
+            . view('Template/sidebar')
+            . view('users/user_list', $data)
+            . view('Template/footer');
     }
 
     // Menampilkan form untuk menambah pengguna baru
     public function create()
     {
         // Tidak perlu mengirim data apa pun, karena form-nya kosong
-        return view('users/user_form');
+        return view('Template/header')
+            . view('Template/sidebar')
+            . view('users/user_form')
+            . view('Template/footer');
     }
 
     // Memproses data dari form tambah pengguna
@@ -62,7 +68,10 @@ class UserController extends Controller
         }
 
         // Mengirimkan data pengguna ke form yang sama
-        return view('users/user_form', $data);
+        return view('Template/header')
+            . view('Template/sidebar')
+            . view('users/user_form', $data)
+            . view('Template/footer');
     }
 
     // Memproses data dari form edit

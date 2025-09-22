@@ -1,3 +1,17 @@
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">Tampilan Foto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="modalImage" src="" class="img-fluid" alt="Foto Marker">
+            </div>
+        </div>
+    </div>
+</div>
+
 <main class="content">
     <div class="container-fluid p-0">
 
@@ -41,12 +55,12 @@
                             </div>
                             <div class="col-md-3 d-flex align-items-end justify-content-end">
                                 <div class="btn-group">
-                                <?php if (session()->get('role_id') == 1) : ?>
-                                    <a href="<?= base_url('koordinat/import'); ?>" class="btn btn-primary" style="height: 40px;">
-                                        <i class="fas fa-file-import"></i> Import
-                                    </a>
-                                <?php endif; ?>
-                                   <button type="button" style="height: 40px; " class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <?php if (session()->get('role_id') == 1) : ?>
+                                        <a href="<?= base_url('koordinat/import'); ?>" class="btn btn-primary" style="height: 40px;">
+                                            <i class="fas fa-file-import"></i> Import
+                                        </a>
+                                    <?php endif; ?>
+                                    <button type="button" style="height: 40px; " class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                                         <i class="fas fa-file-export"></i> Export
                                     </button>
                                     <ul class="dropdown-menu">
@@ -150,6 +164,13 @@
         });
     }
 
+    // Fungsi baru untuk membuka modal gambar
+    function openImageModal(imageUrl) {
+        document.getElementById('modalImage').src = imageUrl;
+        var imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+        imageModal.show();
+    }
+
     function renderPopupContent(item) {
         let popupContent = `
             <strong>Sumber Data:</strong> ${item.nama_sumber || '-'}<br>
@@ -168,10 +189,9 @@
             `;
             item.photos.forEach(photo => {
                 const photoUrl = `<?= base_url('/'); ?>${photo.file_path}`;
+                // Ubah tautan <a> menjadi elemen <img> dengan onclick
                 popupContent += `
-                    <a href="${photoUrl}" target="_blank">
-                        <img src="${photoUrl}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 5px; cursor: pointer;">
-                    </a>
+                    <img src="${photoUrl}" onclick="openImageModal('${photoUrl}')" style="width: 80px; height: 80px; object-fit: cover; border-radius: 5px; cursor: pointer;">
                 `;
             });
             popupContent += `</div><hr>`;
@@ -190,7 +210,7 @@
         }
 
         popupContent += `
-            <a href="http://maps.google.com/maps?q=${item.latitude},${item.longitude}" target="_blank" class="btn btn-info btn-sm">Lihat di Google Maps</a>
+            <a href="https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}" target="_blank" class="btn btn-info btn-sm">Lihat di Google Maps</a>
         `;
 
         return popupContent;
@@ -315,13 +335,13 @@
             photosContainer.innerHTML = `
             <div class="photo-gallery d-flex flex-wrap gap-2 mb-3">
                 ${item.photos.map(photo => `
-                    <div id="photo-${photo.id_photo}" class="position-relative">
-                        <img src="<?= base_url(); ?>${photo.file_path}" class="img-thumbnail" style="width: 100px; height: 100px; object-fit: cover;">
-                        <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 p-1" style="font-size: 0.75rem; border-radius: 50%;" 
+                <div id="photo-${photo.id_photo}" class="position-relative">
+                    <img src="<?= base_url(); ?>${photo.file_path}" class="img-thumbnail" style="width: 100px; height: 100px; object-fit: cover;">
+                    <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 p-1" style="font-size: 0.75rem; border-radius: 50%;" 
                                 onclick="confirmDeletePhoto('${photo.id_photo}')">
-                            ×
-                        </button>
-                    </div>
+                        ×
+                    </button>
+                </div>
                 `).join('')}
             </div>`;
         } else {

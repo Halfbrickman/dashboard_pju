@@ -11,13 +11,7 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-body">
-                        <?php if (session()->getFlashdata('success')) : ?>
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                <?= session()->getFlashdata('success'); ?>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        <?php endif; ?>
-
+                        
                         <div class="table-responsive">
                             <table class="table table-hover my-0">
                                 <thead>
@@ -41,7 +35,7 @@
                                                 <?php if (session()->get('role_id') == 1) : ?>
                                                     <td class="text-center">
                                                         <a href="<?= base_url('users/edit/' . esc($user['id'])) ?>" class="btn btn-warning btn-sm">Edit</a>
-                                                        <a href="<?= base_url('users/delete/' . esc($user['id'])) ?>" class="btn btn-danger btn-sm" onclick="return confirm('Apakah Anda yakin ingin menghapus pengguna ini?');">Hapus</a>
+                                                        <a href="#" class="btn btn-danger btn-sm delete-btn" data-id="<?= esc($user['id']) ?>">Hapus</a>
                                                     </td>
                                                 <?php endif; ?>
                                             </tr>
@@ -60,3 +54,40 @@
         </div>
     </div>
 </main>
+
+<script>
+    // SweetAlert untuk notifikasi sukses
+    <?php if (session()->getFlashdata('success')) : ?>
+        Swal.fire({
+            icon: 'success',
+            title: 'Berhasil!',
+            text: '<?= session()->getFlashdata('success'); ?>',
+            showConfirmButton: false,
+            timer: 2000
+        });
+    <?php endif; ?>
+
+    // SweetAlert untuk konfirmasi hapus
+    document.querySelectorAll('.delete-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const userId = this.getAttribute('data-id');
+            const deleteUrl = '<?= base_url('users/delete/') ?>' + userId;
+
+            Swal.fire({
+                title: 'Apakah Anda yakin?',
+                text: "Data yang dihapus tidak dapat dikembalikan!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Ya, hapus!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = deleteUrl;
+                }
+            });
+        });
+    });
+</script>

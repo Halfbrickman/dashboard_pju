@@ -12,17 +12,17 @@
 
                             <div class="mb-3">
                                 <label for="username" class="form-label">Nama Pengguna</label>
-                                <input type="text" class="form-control" id="username" name="username" value="<?= isset($user) ? esc($user['username']) : '' ?>" required>
+                                <input type="text" class="form-control form-control-md" id="username" name="username" value="<?= isset($user) ? esc($user['username']) : '' ?>" required>
                             </div>
 
                             <div class="mb-3">
                                 <label for="password" class="form-label">Password <?= isset($user) ? '(Kosongkan jika tidak ingin diubah)' : '' ?></label>
-                                <input type="password" class="form-control" id="password" name="password" <?= !isset($user) ? 'required' : '' ?>>
+                                <input type="password" class="form-control form-control-md" id="password" name="password" <?= !isset($user) ? 'required' : '' ?>>
                             </div>
 
                             <div class="mb-3">
                                 <label for="password_confirm" class="form-label">Ulangi Password</label>
-                                <input class="form-control form-control-lg" type="password" name="password_confirm" placeholder="Ulangi password baru" />
+                                <input class="form-control form-control-md" type="password" name="password_confirm" placeholder="Ulangi password baru" />
                             </div>
 
                             <div class="mb-3">
