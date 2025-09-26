@@ -61,7 +61,14 @@ class MapController extends BaseController
     public function getMarkerData()
     {
         $request = \Config\Services::request();
-        $sumber_id = $request->getGet('sumber_data_id');
+        
+        // --- AWAL LOGIKA MULTIPLE FILTER ---
+        // 1. Ambil nilai sumber_data_id dari URL (contoh: "1,5,10")
+        $sumber_ids_raw = $request->getGet('sumber_data_ids');
+        // 2. Ubah string menjadi array numerik: [1, 5, 10]
+        $sumber_ids = $sumber_ids_raw ? array_map('intval', explode(',', $sumber_ids_raw)) : null; 
+        // --- AKHIR LOGIKA MULTIPLE FILTER ---
+
         $koordinat_id = $request->getGet('id_koordinat');
         $id_kotakab = $request->getGet('id_kotakab');
         $id_kec = $request->getGet('id_kec');
@@ -70,6 +77,7 @@ class MapController extends BaseController
         $photoModel = new \App\Models\M_photo();
 
         if ($koordinat_id) {
+            // Logika untuk ID tunggal (detail marker)
             $dataKoordinat = $this->koordinatModel->select('koordinat.*, kecamatan.nama_kec, kelurahan.nama_kel, sumber_data.nama_sumber, sumber_data.warna, kota_kab.nama_kotakab')
                 ->join('kecamatan', 'kecamatan.id_kec = koordinat.id_kec', 'left')
                 ->join('kelurahan', 'kelurahan.id_kel = koordinat.id_kel', 'left')
@@ -78,7 +86,9 @@ class MapController extends BaseController
                 ->where('koordinat.id_koordinat', $koordinat_id)
                 ->findAll();
         } else {
-            $dataKoordinat = $this->koordinatModel->getFilteredMarkers($sumber_id, $id_kotakab, $id_kec, $id_kel);
+            // Panggil Model dengan array $sumber_ids yang baru
+            // Model (M_koordinat) akan menggunakan whereIn() di dalamnya.
+            $dataKoordinat = $this->koordinatModel->getFilteredMarkers($sumber_ids, $id_kotakab, $id_kec, $id_kel);
         }
 
         if (empty($dataKoordinat)) {
@@ -87,7 +97,7 @@ class MapController extends BaseController
 
         $koordinatIds = array_column($dataKoordinat, 'id_koordinat');
 
-        // Pastikan array ID tidak kosong sebelum melakukan query
+        // Pastikan array ID tidak kosong sebelum melakukan query keterangan
         $allKeterangan = [];
         if (!empty($koordinatIds)) {
             $allKeterangan = $this->isiKeteranganModel
@@ -97,7 +107,7 @@ class MapController extends BaseController
                 ->findAll();
         }
 
-        // Pastikan array ID tidak kosong sebelum melakukan query
+        // Pastikan array ID tidak kosong sebelum melakukan query foto
         $allPhotos = [];
         if (!empty($koordinatIds)) {
             $allPhotos = $photoModel->whereIn('id_koordinat', $koordinatIds)->findAll();
@@ -229,11 +239,9 @@ class MapController extends BaseController
                     $fileMimeType = $photo->getClientMimeType();
 
                     if ($photo->isValid() && !$photo->hasMoved() && in_array($fileMimeType, $allowedMimeTypes) && $photo->getSizeByUnit('mb') <= 5) {
-                        // *** AWAL PERUBAHAN UTAMA DI SINI ***
                         $originalName = $photo->getName();
                         $cleanedName = preg_replace('/[^A-Za-z0-9_.]/', '_', $originalName);
                         $newName = str_replace(' ', '_', $cleanedName);
-                        // *** AKHIR PERUBAHAN UTAMA DI SINI ***
 
                         $photo->move(FCPATH . $upload_dir, $newName);
 
@@ -316,11 +324,9 @@ class MapController extends BaseController
                     $fileMimeType = $photo->getClientMimeType();
 
                     if ($photo->isValid() && !$photo->hasMoved() && in_array($fileMimeType, $allowedMimeTypes) && $photo->getSizeByUnit('mb') <= 5) {
-                        // *** AWAL PERUBAHAN UTAMA DI SINI ***
                         $originalName = $photo->getName();
                         $cleanedName = preg_replace('/[^A-Za-z0-9_.]/', '_', $originalName);
                         $newName = str_replace(' ', '_', $cleanedName);
-                        // *** AKHIR PERUBAHAN UTAMA DI SINI ***
 
                         $photo->move(FCPATH . 'uploads/photos', $newName);
                         $data_photo = [
@@ -355,7 +361,6 @@ class MapController extends BaseController
         $request = \Config\Services::request();
         // Pastikan permintaan datang dari AJAX
         if (!$request->isAJAX()) {
-            // Mengembalikan respons JSON, bukan redirect
             return $this->response->setJSON(['status' => 'error', 'message' => 'Invalid request.', 'redirect' => false]);
         }
 
@@ -393,9 +398,16 @@ class MapController extends BaseController
         }
     }
 
+    // =========================================================================
+    // FUNGSI EXPORT KML (Disesuaikan untuk Multi-Filter)
+    // =========================================================================
     public function exportKML()
     {
-        $sumber_id = $this->request->getGet('sumber_data_id');
+        // --- AWAL LOGIKA MULTIPLE FILTER ---
+        $sumber_ids_raw = $this->request->getGet('sumber_data_id');
+        $sumber_ids = $sumber_ids_raw ? array_map('intval', explode(',', $sumber_ids_raw)) : null;
+        // --- AKHIR LOGIKA MULTIPLE FILTER ---
+
         $id_kotakab = $this->request->getGet('id_kotakab');
         $id_kec = $this->request->getGet('id_kec');
         $id_kel = $this->request->getGet('id_kel');
@@ -404,8 +416,9 @@ class MapController extends BaseController
             ->join('sumber_data', 'sumber_data.id_sumberdata = koordinat.id_sumberdata', 'left')
             ->join('isi_keterangan', 'isi_keterangan.id_koordinat = koordinat.id_koordinat', 'left');
 
-        if ($sumber_id) {
-            $builder->where('koordinat.id_sumberdata', $sumber_id);
+        if ($sumber_ids) {
+            // Ini adalah inti dari filter berganda. whereIn() mencari data yang cocok dengan salah satu ID dalam array.
+            $builder->whereIn('koordinat.id_sumberdata', $sumber_ids);
         }
         if ($id_kotakab) {
             $builder->where('koordinat.id_kotakab', $id_kotakab);
@@ -443,18 +456,27 @@ class MapController extends BaseController
             ->setBody($kmlContent);
     }
 
+    // =========================================================================
+    // FUNGSI EXPORT EXCEL (Disesuaikan untuk Multi-Filter)
+    // =========================================================================
     public function exportExcel()
     {
         ini_set('max_execution_time', 300);
 
-        $sumber_id = $this->request->getGet('sumber_data_id');
+        // --- AWAL LOGIKA MULTIPLE FILTER ---
+        $sumber_ids_raw = $this->request->getGet('sumber_data_id');
+        $sumber_ids = $sumber_ids_raw ? array_map('intval', explode(',', $sumber_ids_raw)) : null;
+        // --- AKHIR LOGIKA MULTIPLE FILTER ---
+
         $id_kotakab = $this->request->getGet('id_kotakab');
         $id_kec = $this->request->getGet('id_kec');
         $id_kel = $this->request->getGet('id_kel');
 
         $koordinatBuilder = $this->koordinatModel->getDataKoordinatQuery();
-        if ($sumber_id) {
-            $koordinatBuilder->where('koordinat.id_sumberdata', $sumber_id);
+        
+        if ($sumber_ids) {
+            // Ini adalah inti dari filter berganda. whereIn() mencari data yang cocok dengan salah satu ID dalam array.
+            $koordinatBuilder->whereIn('koordinat.id_sumberdata', $sumber_ids);
         }
         if ($id_kotakab) {
             $koordinatBuilder->where('koordinat.id_kotakab', $id_kotakab);
@@ -465,6 +487,7 @@ class MapController extends BaseController
         if ($id_kel) {
             $koordinatBuilder->where('koordinat.id_kel', $id_kel);
         }
+        
         $koordinatData = $koordinatBuilder->findAll();
 
         if (empty($koordinatData)) {
@@ -537,12 +560,19 @@ class MapController extends BaseController
         exit();
     }
 
+    // =========================================================================
+    // FUNGSI EXPORT PDF (Disesuaikan untuk Multi-Filter)
+    // =========================================================================
     public function exportPDF()
     {
         ini_set('memory_limit', '2048M');
         ini_set('max_execution_time', 300);
 
-        $sumber_id = $this->request->getGet('sumber_data_id');
+        // --- AWAL LOGIKA MULTIPLE FILTER ---
+        $sumber_ids_raw = $this->request->getGet('sumber_data_id');
+        $sumber_ids = $sumber_ids_raw ? array_map('intval', explode(',', $sumber_ids_raw)) : null;
+        // --- AKHIR LOGIKA MULTIPLE FILTER ---
+
         $id_kotakab = $this->request->getGet('id_kotakab');
         $id_kec = $this->request->getGet('id_kec');
         $id_kel = $this->request->getGet('id_kel');
@@ -554,8 +584,9 @@ class MapController extends BaseController
             ->join('kecamatan', 'kecamatan.id_kec = koordinat.id_kec', 'left')
             ->join('kelurahan', 'kelurahan.id_kel = koordinat.id_kel', 'left');
 
-        if ($sumber_id) {
-            $koordinatBuilder->where('koordinat.id_sumberdata', $sumber_id);
+        if ($sumber_ids) {
+            // Ini adalah inti dari filter berganda. whereIn() mencari data yang cocok dengan salah satu ID dalam array.
+            $koordinatBuilder->whereIn('koordinat.id_sumberdata', $sumber_ids);
         }
         if ($id_kotakab) {
             $koordinatBuilder->where('koordinat.id_kotakab', $id_kotakab);

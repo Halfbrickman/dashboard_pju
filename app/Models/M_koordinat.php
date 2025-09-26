@@ -58,9 +58,15 @@ class M_koordinat extends Model
         $builder->join('kecamatan', 'kecamatan.id_kec = koordinat.id_kec', 'left');
         $builder->join('kelurahan', 'kelurahan.id_kel = koordinat.id_kel', 'left');
 
-        if ($sumber_data_id) {
+        // --- Perbaikan utama: Menggunakan whereIn() untuk multi-ID ---
+        if (!empty($sumber_data_id) && is_array($sumber_data_id)) {
+            $builder->whereIn('koordinat.id_sumberdata', $sumber_data_id);
+        } else if (!empty($sumber_data_id)) {
+            // Jika ID tunggal dikirim, gunakan where()
             $builder->where('koordinat.id_sumberdata', $sumber_data_id);
         }
+        // -------------------------------------------------------------
+        
         if ($id_kotakab) {
             $builder->where('koordinat.id_kotakab', $id_kotakab);
         }

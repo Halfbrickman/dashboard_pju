@@ -1,3 +1,30 @@
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINf0e7v/aRj9Lz/y2YVzN9fQ5E0d2PzV5A=" crossorigin="" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css" />
+
+<style>
+    .source-filter-container {
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        padding: 0.5rem;
+        max-height: 150px;
+        overflow-y: auto;
+        background-color: #f8f9fa;
+        /
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .source-filter-container .form-check {
+        width: 50%; 
+        margin-right: 0;
+    }
+    
+    .form-check-label {
+        font-size: 0.9rem;
+    }
+</style>
+
 <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
@@ -22,18 +49,26 @@
                 <div class="card">
                     <div class="card-body">
                         <div class="row mb-3">
+                            <!-- Filter Sumber Data dengan Checkbox -->
                             <div class="col-md-3">
-                                <select class="form-select" id="filterSumberData">
-                                    <option value="">Semua Sumber Data</option>
+                                <label class="form-label">Sumber Data:</label>
+                                <div class="source-filter-container">
                                     <?php foreach ($sumber_data as $sumber) : ?>
-                                        <option value="<?= $sumber['id_sumberdata']; ?>" data-color="<?= $sumber['warna']; ?>"><?= $sumber['nama_sumber']; ?></option>
+                                        <div class="form-check">
+                                            <input class="form-check-input source-checkbox" type="checkbox" name="filterSumberData[]" value="<?= $sumber['id_sumberdata']; ?>" id="source-<?= $sumber['id_sumberdata']; ?>" checked>
+                                            <label class="form-check-label" for="source-<?= $sumber['id_sumberdata']; ?>">
+                                            <?= $sumber['nama_sumber']; ?>
+                                        </label>
+                                        </div>
                                     <?php endforeach; ?>
-                                </select>
+                                </div>
                             </div>
+                            <!-- Akhir Filter Sumber Data -->
 
                             <div class="col-md-6" id="filterWilayahDiv">
                                 <div class="row">
                                     <div class="col-md-4">
+                                        <label class="form-label">Kota/Kab:</label>
                                         <select class="form-select" id="filterKota">
                                             <option value="">Semua Kota/Kab</option>
                                             <?php foreach ($kotakab as $kota) : ?>
@@ -42,11 +77,13 @@
                                         </select>
                                     </div>
                                     <div class="col-md-4">
+                                        <label class="form-label">Kecamatan:</label>
                                         <select class="form-select" id="filterKecamatan" disabled>
                                             <option value="">Semua Kecamatan</option>
                                         </select>
                                     </div>
                                     <div class="col-md-4">
+                                        <label class="form-label">Kelurahan:</label>
                                         <select class="form-select" id="filterKelurahan" disabled>
                                             <option value="">Semua Kelurahan</option>
                                         </select>
@@ -76,7 +113,6 @@
                 </div>
             </div>
         </div>
-
     </div>
 </main>
 
@@ -137,6 +173,8 @@
     </div>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-p4NxAoJBhIINf0e7v/aRj9Lz/y2YVzN9fQ5E0d2PzV5A=" crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
 <script>
     const allJudulKeterangan = <?= json_encode($judul_keterangan); ?>;
     const isAdmin = <?= session()->get('role_id') == 1 ? 'true' : 'false'; ?>;
@@ -155,7 +193,7 @@
     var markers = L.markerClusterGroup();
 
     function createCustomIcon(color) {
-        var iconUrl = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path fill="' + color + '" d="M128 252.6C128 148.4 214 64 320 64C426 64 512 148.4 512 252.6C512 371.9 391.8 514.9 341.6 569.4C329.8 582.2 310.1 582.2 298.3 569.4C248.1 514.9 127.9 371.9 127.9 252.6zM320 320C355.3 320 384 291.3 384 256C384 220.7 355.3 192 320 192C284.7 192 256 220.7 256 256C256 291.3 284.7 320 320 320z"/></svg>');
+        var iconUrl = 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path fill="${color}" d="M320 0c-88.4 0-160 71.6-160 160s160 256 160 256s160-167.6 160-256s-71.6-160-160-160zm0 256c-53 0-96-43-96-96s43-96 96-96 96 43 96 96-43 96-96 96z"/></svg>`);
         return L.icon({
             iconUrl: iconUrl,
             iconSize: [25, 41],
@@ -164,7 +202,6 @@
         });
     }
 
-    // Fungsi baru untuk membuka modal gambar
     function openImageModal(imageUrl) {
         document.getElementById('modalImage').src = imageUrl;
         var imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
@@ -189,7 +226,6 @@
             `;
             item.photos.forEach(photo => {
                 const photoUrl = `<?= base_url('/'); ?>${photo.file_path}`;
-                // Ubah tautan <a> menjadi elemen <img> dengan onclick
                 popupContent += `
                     <img src="${photoUrl}" onclick="openImageModal('${photoUrl}')" style="width: 80px; height: 80px; object-fit: cover; border-radius: 5px; cursor: pointer;">
                 `;
@@ -222,15 +258,29 @@
         allMarkersData = [];
         markerLayers = {};
 
-        const sumberId = document.getElementById('filterSumberData').value;
+        const sourceCheckboxes = document.querySelectorAll('input[name="filterSumberData[]"]:checked');
+        const sumberIds = Array.from(sourceCheckboxes).map(checkbox => checkbox.value);
+        
         const idKotakab = document.getElementById('filterKota').value;
         const idKec = document.getElementById('filterKecamatan').value;
         const idKel = document.getElementById('filterKelurahan').value;
+        
+        // Cek apakah ada sumber data yang dipilih
+        if (sumberIds.length === 0) {
+            return; // Hentikan fungsi jika tidak ada sumber yang dicentang
+        }
 
-        let url = `<?= base_url('api/markers'); ?>?sumber_data_id=${sumberId}`;
-        if (idKotakab) url += `&id_kotakab=${idKotakab}`;
-        if (idKec) url += `&id_kec=${idKec}`;
-        if (idKel) url += `&id_kel=${idKel}`;
+        let url = `<?= base_url('api/markers'); ?>?sumber_data_ids=${sumberIds.join(',')}`;
+
+        if (idKotakab) {
+             url += `&id_kotakab=${idKotakab}`;
+        }
+        if (idKec) {
+            url += `&id_kec=${idKec}`;
+        }
+        if (idKel) {
+             url += `&id_kel=${idKel}`;
+        }
 
         fetch(url)
             .then(response => {
@@ -240,8 +290,6 @@
                 return response.json();
             })
             .then(data => {
-                console.log('Data yang diterima:', data);
-
                 allMarkersData = data;
                 allMarkersData.forEach(item => {
                     const lat = parseFloat(item.latitude);
@@ -568,10 +616,14 @@
             });
     }
 
-    const filterSumberData = document.getElementById('filterSumberData');
+    const sourceCheckboxes = document.querySelectorAll('.source-checkbox');
     const filterKota = document.getElementById('filterKota');
     const filterKecamatan = document.getElementById('filterKecamatan');
     const filterKelurahan = document.getElementById('filterKelurahan');
+
+    sourceCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', loadMarkers);
+    });
 
     function populateSelect(selectElement, data, placeholder, valueKey, textKey) {
         selectElement.innerHTML = `<option value="">${placeholder}</option>`;
@@ -583,7 +635,6 @@
         });
     }
 
-    filterSumberData.addEventListener('change', loadMarkers);
     filterKota.addEventListener('change', function() {
         const idKotakab = this.value;
         filterKecamatan.value = '';
@@ -631,18 +682,24 @@
             link.addEventListener('click', function(e) {
                 e.preventDefault();
 
-                const baseUrl = this.href;
+                const baseUrl = this.href.split('?')[0];
                 const params = new URLSearchParams();
-                const selectedSumberId = filterSumberData.value;
+
+                const sourceCheckboxes = document.querySelectorAll('input[name="filterSumberData[]"]:checked');
+                const selectedSumberIds = Array.from(sourceCheckboxes).map(checkbox => checkbox.value);
+
+                if (selectedSumberIds.length > 0) {
+                    params.append('sumber_data_ids', selectedSumberIds.join(','));
+                }
+                
                 const selectedKotakab = filterKota.value;
                 const selectedKec = filterKecamatan.value;
                 const selectedKel = filterKelurahan.value;
 
-                if (selectedSumberId) params.append('sumber_data_id', selectedSumberId);
                 if (selectedKotakab) params.append('id_kotakab', selectedKotakab);
                 if (selectedKec) params.append('id_kec', selectedKec);
                 if (selectedKel) params.append('id_kel', selectedKel);
-
+                
                 let finalUrl = baseUrl;
                 if (params.toString()) {
                     finalUrl += '?' + params.toString();
