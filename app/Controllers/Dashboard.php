@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\M_koordinat;
 use App\Models\M_sumberData;
 use App\Models\M_isiKeterangan;
+use App\Models\M_notifikasi;
 
 class Dashboard extends BaseController
 {
@@ -13,6 +14,7 @@ class Dashboard extends BaseController
         $modelKordinat = new M_koordinat();
         $modelSumberData = new M_sumberData();
         $modelIsiKeterangan = new M_isiKeterangan();
+        $modelNotifikasi = new M_notifikasi();
 
         $koordinatData = $modelKordinat->getDataKoordinat();
         
@@ -46,6 +48,7 @@ class Dashboard extends BaseController
             'dataPerSumber' => [],
             'labels' => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
             'datasets' => [], // Inisialisasi datasets di sini
+            'notifikasi' => $modelNotifikasi->getRecentNotifications(5),
         ];
         
         foreach ($sumberData as $sumber) {
@@ -94,6 +97,20 @@ class Dashboard extends BaseController
             echo view('dashboard', $data);
             echo view('Template/assetDashboard');
             echo view('Template/footer');
+        }
+    }
+
+    public function downloadNotificationFile($id)
+    {
+        $modelNotifikasi = new M_notifikasi();
+        $notif = $modelNotifikasi->find($id);
+
+        if ($notif && file_exists($notif['path_file'])) {
+            // Menggunakan helper download dari CodeIgniter
+            return $this->response->download($notif['path_file'], null)->setFileName($notif['nama_file']);
+        } else {
+            // Jika file tidak ditemukan, redirect atau tampilkan error
+            return redirect()->back()->with('error', 'File tidak ditemukan atau telah dihapus.');
         }
     }
 }

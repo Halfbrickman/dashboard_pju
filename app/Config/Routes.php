@@ -6,6 +6,7 @@ use CodeIgniter\Router\RouteCollection;
  * @var RouteCollection $routes
  */
 $routes->get('dashboard', 'Dashboard::index');
+$routes->get('/dashboard/downloadNotificationFile/(:num)', 'Dashboard::downloadNotificationFile/$1');
 
 // Rute default yang mengarahkan ke halaman login
 $routes->get('/', 'AuthController::login');

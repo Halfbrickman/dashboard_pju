@@ -8,6 +8,7 @@ use App\Models\M_judulKeterangan;
 use App\Models\M_isiKeterangan;
 use App\Models\M_Wilayah;
 use App\Models\M_photo;
+use App\Models\M_notifikasi;
 use CodeIgniter\Controller;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
@@ -39,23 +40,39 @@ class KoordinatController extends BaseController
             return redirect()->to('/koordinat/import')->with('error', $this->validator->getErrors()['excel_file']);
         }
 
+        $namaFileAsli = $file->getName();
+        $namaFileServer = $file->getRandomName();
+
+        $uploadPath = WRITEPATH . 'uploads/batch_files/';
+        if (!is_dir($uploadPath)) {
+            mkdir($uploadPath, 0777, true);
+        }
+
+        if (!is_writable($uploadPath)) {
+            return redirect()->to('/koordinat/import')->with('error', "Error: Folder '{$uploadPath}' tidak dapat ditulis. Periksa izin folder.");
+        }
+
+        if (!$file->move($uploadPath, $namaFileServer)) {
+            return redirect()->to('/koordinat/import')->with('error', 'Gagal memindahkan file yang diunggah. Periksa konfigurasi server.');
+        }
+        $pathFilePermanen = $uploadPath . $namaFileServer;
+
         try {
-            // Inisialisasi Model
             $koordinatModel = new M_koordinat();
             $wilayahModel = new M_Wilayah();
             $sumberDataModel = new M_sumberData();
             $judulKeteranganModel = new M_judulKeterangan();
             $isiKeteranganModel = new M_isiKeterangan();
             $photoModel = new M_photo();
+            $notifikasiModel = new M_notifikasi();
 
-            // Caching data master
             $sumberDataMap = array_change_key_case(array_column($sumberDataModel->findAll(), 'id_sumberdata', 'nama_sumber'), CASE_LOWER);
             $kotaKabMap = array_change_key_case(array_column($wilayahModel->getKotaKab(), 'id_kotakab', 'nama_kotakab'), CASE_LOWER);
             $kecamatanMap = array_change_key_case(array_column($wilayahModel->getKecamatan(), 'id_kec', 'nama_kec'), CASE_LOWER);
             $kelurahanMap = array_change_key_case(array_column($wilayahModel->getKelurahan(), 'id_kel', 'nama_kel'), CASE_LOWER);
             $judulKeteranganMap = array_change_key_case(array_column($judulKeteranganModel->findAll(), 'id_jdlketerangan', 'jdl_keterangan'), CASE_LOWER);
 
-            $spreadsheet = IOFactory::load($file->getTempName());
+            $spreadsheet = IOFactory::load($pathFilePermanen);
             $sheet = $spreadsheet->getActiveSheet();
             $headerRow = $sheet->getRowIterator(1, 1)->current();
 
@@ -117,21 +134,14 @@ class KoordinatController extends BaseController
                     foreach ($photoNames as $photoName) {
                         $trimmedName = trim($photoName);
                         if (!empty($trimmedName)) {
-                            // Panggil fungsi sanitasi nama file
                             $sanitizedName = $this->_sanitizeFileName($trimmedName);
-
-                            // Cari entri foto yang sudah ada
                             $existingPhoto = $photoModel->where('nama_photo', $sanitizedName)->first();
 
                             if ($existingPhoto) {
-                                // Jika foto sudah ada, periksa apakah id_koordinatnya kosong
                                 if (empty($existingPhoto['id_koordinat'])) {
-                                    // Jika id_koordinat kosong, perbarui dengan id_koordinat yang baru
                                     $photoModel->update($existingPhoto['id_photo'], ['id_koordinat' => $newKoordinatId]);
                                 }
-                                // Jika id_koordinat sudah terisi, biarkan saja (tidak melakukan apa-apa)
                             } else {
-                                // Jika foto belum ada, buat entri baru
                                 $photoModel->insert([
                                     'id_koordinat' => $newKoordinatId,
                                     'nama_photo'   => $sanitizedName,
@@ -157,41 +167,62 @@ class KoordinatController extends BaseController
                 $importedCount++;
             }
 
+
             if ($koordinatModel->db->transStatus() === false || !empty($failedRows)) {
                 $koordinatModel->db->transRollback();
+                if (file_exists($pathFilePermanen)) {
+                    unlink($pathFilePermanen);
+                }
                 return redirect()->to('/koordinat/import')->with('error', 'Proses impor dibatalkan karena ada data yang tidak valid.')->with('failed_rows', $failedRows);
             } else {
-                $koordinatModel->db->transCommit();
-                session()->setFlashdata('imported_count', $importedCount);
-                session()->setFlashdata('imported_koordinat_ids', implode(',', $importedKoordinatIds));
-                return redirect()->to('/koordinat/import')->with('success', "Berhasil mengimpor {$importedCount} data. Silakan unggah foto terkait.");
+                $notifikasiBerhasil = true; // Asumsikan berhasil
+                if ($importedCount > 0) {
+                    $dataNotif = [
+                        'pesan'       => "{$importedCount} data baru dari file '{$namaFileAsli}' berhasil diimport.",
+                        'nama_file'   => $namaFileAsli,
+                        'path_file'   => $pathFilePermanen,
+                        'tipe'        => 'batch'
+                    ];
+
+                    if (!$notifikasiModel->insert($dataNotif)) {
+                        $notifikasiBerhasil = false;
+                    }
+                }
+
+                if ($notifikasiBerhasil) {
+                    $koordinatModel->db->transCommit();
+                    session()->setFlashdata('imported_count', $importedCount);
+                    session()->setFlashdata('imported_koordinat_ids', implode(',', $importedKoordinatIds));
+                    return redirect()->to('/koordinat/import')->with('success', "Berhasil mengimpor {$importedCount} data. Silakan unggah foto terkait.");
+                } else {
+                    $koordinatModel->db->transRollback();
+                    if (file_exists($pathFilePermanen)) {
+                        unlink($pathFilePermanen);
+                    }
+                    $notifError = $notifikasiModel->errors() ? implode(', ', $notifikasiModel->errors()) : 'Unknown error.';
+                    return redirect()->to('/koordinat/import')->with('error', 'GAGAL MEMBUAT NOTIFIKASI: ' . $notifError);
+                }
             }
         } catch (\Exception $e) {
             if (isset($koordinatModel) && $koordinatModel->db->transStatus() !== false) {
                 $koordinatModel->db->transRollback();
             }
-            return redirect()->to('/koordinat/import')->with('error', 'Terjadi error saat memproses file: ' . $e->getMessage());
+            if (isset($pathFilePermanen) && file_exists($pathFilePermanen)) {
+                unlink($pathFilePermanen);
+            }
+            log_message('error', '[Import Error] ' . $e->getMessage());
+            return redirect()->to('/koordinat/import')->with('error', 'Terjadi error saat memproses file. Silakan cek log untuk detail.');
         }
     }
 
-    /**
-     * Helper function untuk membersihkan nama file.
-     * Mengganti karakter non-alphanumeric (kecuali . dan _) dengan underscore.
-     */
     private function _sanitizeFileName(string $filename): string
     {
         $info = pathinfo($filename);
         $name = $info['filename'];
         $extension = isset($info['extension']) ? '.' . $info['extension'] : '';
-
-        // Mengubah semua karakter non-alphanumeric, non-titik, dan non-underscore menjadi underscore.
         $sanitizedName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $name);
-        // Menggabungkan multiple underscores menjadi satu
         $sanitizedName = preg_replace('/_+/', '_', $sanitizedName);
-
-        // Membersihkan underscore di awal atau akhir nama file
         $sanitizedName = trim($sanitizedName, '_');
-
         return $sanitizedName . $extension;
     }
 
@@ -203,13 +234,11 @@ class KoordinatController extends BaseController
         $filesToProcess = [];
         $isZip = false;
 
-        // Periksa apakah request adalah POST dan apakah ada file yang dikirim
         if (!$this->request->is('post')) {
             session()->setFlashdata('error', 'Metode permintaan tidak valid.');
             return redirect()->to('/koordinat/import');
         }
 
-        // Deteksi apakah file yang diunggah adalah ZIP
         $zipFile = $this->request->getFile('zip_file');
         if ($zipFile && $zipFile->isValid() && !$zipFile->hasMoved()) {
             $isZip = true;
@@ -222,11 +251,9 @@ class KoordinatController extends BaseController
             if ($zipFile->move($tempPath, $zipFile->getName())) {
                 $zip = new \ZipArchive;
                 if ($zip->open($tempPath . $zipFile->getName()) === TRUE) {
-                    // Ekstrak semua file ke folder temporer
                     $zip->extractTo($tempPath);
                     $zip->close();
 
-                    // Ambil daftar file yang sudah diekstrak
                     $filesInZip = scandir($tempPath);
                     foreach ($filesInZip as $file) {
                         if ($file != '.' && $file != '..' && is_file($tempPath . $file) && strtolower($file) !== strtolower($zipFile->getName())) {
@@ -239,38 +266,30 @@ class KoordinatController extends BaseController
                 }
             }
         } else {
-            // Proses unggahan multi-select jika tidak ada file ZIP
             $files = $this->request->getFiles();
             if (isset($files['photos'])) {
                 $filesToProcess = $files['photos'];
             }
         }
 
-        // Jika tidak ada file yang ditemukan, kembalikan error
         if (empty($filesToProcess)) {
             session()->setFlashdata('error', 'Tidak ada foto yang ditemukan untuk diunggah.');
             return redirect()->to('/koordinat/import');
         }
 
-        // Loop melalui setiap file dan memprosesnya
         foreach ($filesToProcess as $file) {
             if ($isZip) {
-                // Proses file dari ZIP
                 $originalName = basename($file);
                 $sanitizedName = $this->_sanitizeFileName($originalName);
 
-                // Pindahkan file dari temp ke folder uploads
                 if (rename($file, FCPATH . $uploadPath . $sanitizedName)) {
                     $this->processPhoto($photoModel, $sanitizedName, $uploadPath);
                     $uploadedCount++;
                 }
             } else {
-                // Proses file dari multi-select
                 if ($file->isValid() && !$file->hasMoved()) {
                     $originalName = $file->getName();
                     $sanitizedName = $this->_sanitizeFileName($originalName);
-
-                    // Tentukan jalur file akhir
                     $destinationPath = FCPATH . $uploadPath;
 
                     if ($file->move($destinationPath, $sanitizedName, true)) {
@@ -281,7 +300,6 @@ class KoordinatController extends BaseController
             }
         }
 
-        // Bersihkan file temporer jika dari ZIP
         if ($isZip && isset($tempPath)) {
             $this->deleteDirectory($tempPath);
         }
