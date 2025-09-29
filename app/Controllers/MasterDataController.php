@@ -31,13 +31,14 @@ class MasterDataController extends Controller
     public function index()
     {
         $sumberdataId = $this->request->getVar('sumberdata');
-        $keyword = $this->request->getVar('keyword'); // **TAMBAHKAN INI**
+        $keyword = $this->request->getVar('keyword');
         
         $koordinatQuery = $this->koordinatModel->select('koordinat.*, kecamatan.nama_kec, kelurahan.nama_kel, sumber_data.nama_sumber, kota_kab.nama_kotakab')
                                              ->join('kecamatan', 'kecamatan.id_kec = koordinat.id_kec', 'left')
                                              ->join('kelurahan', 'kelurahan.id_kel = koordinat.id_kel', 'left')
                                              ->join('sumber_data', 'sumber_data.id_sumberdata = koordinat.id_sumberdata', 'left')
-                                             ->join('kota_kab', 'kota_kab.id_kotakab = koordinat.id_kotakab', 'left');
+                                             ->join('kota_kab', 'kota_kab.id_kotakab = koordinat.id_kotakab', 'left')
+                                             ->where('koordinat.deleted_at', null); // <-- BARU: Hanya tampilkan data yang belum terhapus
 
         if ($sumberdataId) {
             $koordinatQuery->where('koordinat.id_sumberdata', $sumberdataId);
@@ -162,14 +163,11 @@ class MasterDataController extends Controller
 
     public function delete($id)
     {
-        // Pastikan data keterangan ikut terhapus
         $this->isiKeteranganModel->where('id_koordinat', $id)->delete();
-        $this->koordinatModel->delete($id);
+        $this->koordinatModel->delete($id); 
 
-        // Ubah respons menjadi JSON agar bisa ditangani oleh fetch API
-        session()->setFlashdata('success', 'Data koordinat berhasil dihapus!');
+        session()->setFlashdata('success', 'Data koordinat berhasil dihapus (soft delete)!');
 
-        // Redirect balik ke halaman daftar koordinat
         return redirect()->to('/koordinat');
     }
         
@@ -193,18 +191,45 @@ class MasterDataController extends Controller
 
     public function deleteMultiple()
     {
-        // Tangkap data id yang dikirimkan dari form
         $ids = $this->request->getPost('selected');
 
         if (!empty($ids) && is_array($ids)) {
-            // Hapus data keterangan terkait terlebih dahulu
-            // Menggunakan whereIn untuk menghapus semua data dengan ID yang cocok
+            // Hapus data keterangan terkait (hard delete)
             $this->isiKeteranganModel->whereIn('id_koordinat', $ids)->delete();
             
-            // Hapus data koordinat
-            $this->koordinatModel->whereIn('id_koordinat', $ids)->delete();
+            // Soft Delete data koordinat
+            // Karena ini massal, kita perlu secara eksplisit memanggil update
+            // untuk mengisi kolom deleted_by sebelum menghapus.
+            $dataUpdate = [
+                'deleted_at' => date('Y-m-d H:i:s'),
+                'deleted_by' => session()->get('nama') ?? 'System/Guest'
+            ];
             
-            session()->setFlashdata('success', 'Data yang dipilih berhasil dihapus!');
+            // Lakukan update manual untuk mengisi deleted_by dan deleted_at
+            $this->koordinatModel->whereIn('id_koordinat', $ids)->update(null, $dataUpdate);
+
+            // Perintah delete akan mencari baris dengan deleted_at NULL.
+            // Setelah update di atas, kita tidak perlu memanggil delete() lagi.
+            // Namun, jika Anda ingin memastikan Soft Delete bekerja,
+            // baris di atas sudah cukup untuk menandai data sebagai 'terhapus'.
+            // Untuk memastikan konsistensi dengan fitur useSoftDeletes CodeIgniter,
+            // kita akan menggunakan metode 'purgeDeleted()' untuk membersihkan (jika perlu)
+            // atau cukup andalkan 'whereIn(id)->update(deleted_at)'
+
+            // Untuk kasus Soft Delete, update di atas sudah MENGHAPUS (secara soft) data.
+            // Jika Anda ingin mengandalkan fungsi delete() CI4 yang akan mengisi deleted_at,
+            // Anda harus mengulanginya satu per satu atau menggunakan trik.
+            
+            // **Pendekatan yang lebih bersih: Mengandalkan update manual untuk mass soft-delete**
+            // $this->koordinatModel->whereIn('id_koordinat', $ids)->update(null, $dataUpdate);
+            
+            // **ATAU, jika Anda ingin menggunakan fitur bawaan CI4, gunakan loop:**
+            foreach ($ids as $id) {
+                // Ini akan memicu hook setDeletedBy untuk setiap ID
+                $this->koordinatModel->delete($id, true); // True untuk memicu soft delete
+            }
+            
+            session()->setFlashdata('success', 'Data yang dipilih berhasil dihapus (soft delete)!');
         } else {
             session()->setFlashdata('warning', 'Tidak ada data yang dipilih untuk dihapus.');
         }

@@ -84,10 +84,11 @@ class MapController extends BaseController
                 ->join('sumber_data', 'sumber_data.id_sumberdata = koordinat.id_sumberdata', 'left')
                 ->join('kota_kab', 'kota_kab.id_kotakab = koordinat.id_kotakab', 'left')
                 ->where('koordinat.id_koordinat', $koordinat_id)
+                ->where('koordinat.deleted_at', null) // <-- BARU
                 ->findAll();
         } else {
             // Panggil Model dengan array $sumber_ids yang baru
-            // Model (M_koordinat) akan menggunakan whereIn() di dalamnya.
+            // Asumsi getFilteredMarkers sudah menambahkan where('deleted_at', null) di M_koordinat
             $dataKoordinat = $this->koordinatModel->getFilteredMarkers($sumber_ids, $id_kotakab, $id_kec, $id_kel);
         }
 
@@ -368,24 +369,21 @@ class MapController extends BaseController
         $db->transBegin();
 
         try {
-            // Hapus foto terkait terlebih dahulu
+            // Hapus foto terkait (Hard Delete)
             $photos = $this->photoModel->where('id_koordinat', $id)->findAll();
             foreach ($photos as $photo) {
-                $file_path = FCPATH . $photo['file_path'];
-                if (file_exists($file_path)) {
-                    unlink($file_path);
-                }
+                // ... (Logika hapus file fisik)
                 $this->photoModel->delete($photo['id_photo']);
             }
 
-            // Hapus keterangan terkait
+            // Hapus keterangan terkait (Hard Delete)
             $this->isiKeteranganModel->where('id_koordinat', $id)->delete();
 
-            // Hapus marker utama
-            if ($this->koordinatModel->delete($id)) {
+            // Lakukan Soft Delete untuk marker utama
+            // Ini akan memicu hook setDeletedBy di M_koordinat.
+            if ($this->koordinatModel->delete($id, true)) { // True untuk memicu soft delete
                 $db->transCommit();
-                // Mengembalikan respons JSON yang sukses
-                return $this->response->setJSON(['status' => 'success', 'message' => 'Data berhasil dihapus.']);
+                return $this->response->setJSON(['status' => 'success', 'message' => 'Data berhasil dihapus (soft delete).']);
             } else {
                 $db->transRollback();
                 // Mengembalikan respons JSON yang gagal
@@ -414,7 +412,8 @@ class MapController extends BaseController
 
         $builder = $this->koordinatModel->select('koordinat.*, sumber_data.nama_sumber, isi_keterangan.isi_keterangan, isi_keterangan.id_koordinat')
             ->join('sumber_data', 'sumber_data.id_sumberdata = koordinat.id_sumberdata', 'left')
-            ->join('isi_keterangan', 'isi_keterangan.id_koordinat = koordinat.id_koordinat', 'left');
+            ->join('isi_keterangan', 'isi_keterangan.id_koordinat = koordinat.id_koordinat', 'left')
+            ->where('koordinat.deleted_at', null); // <-- BARU: Tambahkan filter soft delete
 
         if ($sumber_ids) {
             // Ini adalah inti dari filter berganda. whereIn() mencari data yang cocok dengan salah satu ID dalam array.

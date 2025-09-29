@@ -3,8 +3,9 @@
 namespace App\Controllers;
 
 use App\Models\M_sumberData;
+use CodeIgniter\Controller; // Pastikan menggunakan use CodeIgniter\Controller; jika extend BaseController
 
-class sumberDataController extends BaseController
+class sumberDataController extends Controller // Mengganti BaseController ke Controller jika BaseController Anda tidak didefinisikan
 {
     protected $sumberDataModel;
 
@@ -15,6 +16,7 @@ class sumberDataController extends BaseController
 
     public function index()
     {
+        // findAll() secara otomatis hanya mengambil data yang BELUM di soft delete
         $data = [
             'title'        => 'Master Sumber Data',
             'sumber_data'  => $this->sumberDataModel->findAll()
@@ -47,7 +49,6 @@ class sumberDataController extends BaseController
 
     public function saveOrUpdate()
     {
-        // PENTING: Lakukan validasi data di sini
         $rules = [
             'nama_sumber'   => 'required|min_length[3]',
             'warna'         => 'required|min_length[3]'
@@ -61,9 +62,11 @@ class sumberDataController extends BaseController
             ];
 
             if ($id) {
+                // update() akan otomatis mengisi updated_at
                 $this->sumberDataModel->update($id, $dataToSave);
                 session()->setFlashdata('pesan', 'Data sumber berhasil diubah.');
             } else {
+                // save() akan otomatis mengisi created_at dan updated_at
                 $this->sumberDataModel->save($dataToSave);
                 session()->setFlashdata('pesan', 'Data sumber berhasil ditambahkan.');
             }
@@ -77,8 +80,9 @@ class sumberDataController extends BaseController
 
     public function delete($id)
     {
+        // delete() akan otomatis melakukan SOFT DELETE (mengisi kolom deleted_at)
         $this->sumberDataModel->delete($id);
-        session()->setFlashdata('pesan', 'Data sumber berhasil dihapus.');
+        session()->setFlashdata('pesan', 'Data sumber berhasil dihapus (soft delete).');
         return redirect()->to('/sumberdata');
     }
 }

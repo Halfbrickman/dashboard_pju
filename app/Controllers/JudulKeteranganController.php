@@ -46,13 +46,15 @@ class JudulKeteranganController extends Controller
     public function form($id = null)
     {
         $data = [
-            'title'          => 'Form Judul Keterangan',
+            'title'           => 'Form Judul Keterangan',
             'judulKeterangan' => null,
-            'sumberdata'     => $this->sumberDataModel->findAll(),
-            'validation'     => \Config\Services::validation()
+            'sumberdata'      => $this->sumberDataModel->findAll(),
+            'validation'      => \Config\Services::validation()
         ];
 
         if ($id) {
+            // Gunakan withDeleted() untuk memungkinkan edit data yang mungkin telah di-soft delete (opsional)
+            // Namun, untuk form edit normal, find() saja sudah cukup.
             $judulKeterangan = $this->judulKeteranganModel->find($id);
 
             if (empty($judulKeterangan)) {
@@ -89,10 +91,11 @@ class JudulKeteranganController extends Controller
         ];
 
         if ($id) {
+            // update() akan mengisi kolom updated_at secara otomatis
             $this->judulKeteranganModel->update($id, $dataToSave);
-            // Mengganti 'pesan' menjadi 'pesan_swal' untuk konsistensi SweetAlert
             session()->setFlashdata('pesan_swal', 'Data keterangan berhasil diperbarui.');
         } else {
+            // save() akan mengisi kolom created_at dan updated_at secara otomatis
             $this->judulKeteranganModel->save($dataToSave);
             session()->setFlashdata('pesan_swal', 'Data keterangan berhasil ditambahkan.');
         }
@@ -102,8 +105,15 @@ class JudulKeteranganController extends Controller
 
     public function delete($id)
     {
+        // Model yang menggunakan soft delete akan otomatis mengisi kolom deleted_at
+        // daripada menghapus baris dari database.
         $this->judulKeteranganModel->delete($id);
-        session()->setFlashdata('pesan_swal', 'Data judul keterangan berhasil dihapus.');
+        
+        // Cek apakah soft delete berhasil (opsional)
+        // $deletedData = $this->judulKeteranganModel->onlyDeleted()->find($id);
+        // if ($deletedData) { ... }
+
+        session()->setFlashdata('pesan_swal', 'Data judul keterangan berhasil di-soft delete.');
         return redirect()->to('/judul-keterangan');
     }
 }

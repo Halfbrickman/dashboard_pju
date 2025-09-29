@@ -51,5 +51,21 @@ class M_Wilayah extends Model
         $builder->where('id_kec', $idKec);
         return $builder->get()->getResultArray();
     }
+
+    public function getKotaKabById(int $id)
+    {
+        return $this->db->table('kota_kab')->where('id_kotakab', $id)->get(1)->getRowArray();
+    }
+
+    public function getKecamatanById(int $id)
+    {
+        return $this->db->table('kecamatan')->where('id_kec', $id)->get(1)->getRowArray();
+    }
+
+    public function getKelurahanById(int $id)
+    {
+        return $this->db->table('kelurahan')->where('id_kel', $id)->get(1)->getRowArray();
+    }
+
 }
 ?>

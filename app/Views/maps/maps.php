@@ -11,10 +11,8 @@
         max-height: 150px;
         overflow-y: auto;
         background-color: #f8f9fa;
-        
-        /* --- KODE TAMBAHAN UNTUK 2-2 LAYOUT --- */
-        display: flex;         /* Aktifkan Flexbox */
-        flex-wrap: wrap;       /* Izinkan item pindah ke baris baru */
+        display: flex;
+        flex-wrap: wrap;
     }
 
     .source-filter-container .form-check {
@@ -195,7 +193,9 @@
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
-    var markers = L.markerClusterGroup();
+    var markers = L.markerClusterGroup({
+        disableClusteringAtZoom: 17 
+    });
 
     function createCustomIcon(color) {
         var iconUrl = 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path fill="${color}" d="M320 0c-88.4 0-160 71.6-160 160s160 256 160 256s160-167.6 160-256s-71.6-160-160-160zm0 256c-53 0-96-43-96-96s43-96 96-96 96 43 96 96-43 96-96 96z"/></svg>`);

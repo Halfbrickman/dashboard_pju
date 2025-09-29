@@ -22,6 +22,8 @@
                                     <tr>
                                         <th>ID</th>
                                         <th>Nama Keterangan</th>
+                                        <th>Dibuat Pada</th> 
+                                        <th>Diperbarui Pada</th>
                                         <?php if (session()->get('role_id') == 1) : ?>
                                             <th class="text-center">Aksi</th>
                                         <?php endif; ?>
@@ -33,6 +35,8 @@
                                         <tr>
                                             <td><?= esc($i++); ?></td>
                                             <td><?= esc($row['jdl_keterangan']); ?></td>
+                                            <td><?= esc($row['created_at'] ?? '-'); ?></td>
+                                            <td><?= esc($row['updated_at'] ?? '-'); ?></td>
                                             <?php if (session()->get('role_id') == 1) : ?>
                                                 <td class="text-end" style="width: 150px;">
                                                     <a href="/judul-keterangan/form/<?= esc($row['id_jdlketerangan']); ?>" class="btn btn-warning btn-sm" style="border-radius: 10px;">Edit</a>
@@ -55,10 +59,8 @@
     </div>
 </main>
 
-<!-- Tambahkan SweetAlert2 CDN di bagian akhir file, sebelum </body> -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<!-- Script untuk menangani form delete dengan SweetAlert -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const deleteForms = document.querySelectorAll('.delete-form');
@@ -69,7 +71,7 @@
 
                 Swal.fire({
                     title: 'Apakah Anda yakin?',
-                    text: "Anda tidak akan bisa mengembalikan data ini!",
+                    text: "Ini akan menonaktifkan data (Soft Delete) dan dapat dikembalikan oleh admin!", // Ubah teks untuk soft delete
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#d33',
@@ -86,7 +88,7 @@
         });
     });
 
-    // Menampilkan pesan SweetAlert dari flashdata setelah halaman dimuat ulang
+    // Menampilkan pesan SweetAlert dari flashdata setelah halaman dimuat ulang (TIDAK ADA PERUBAHAN)
     const flashdata = <?php echo json_encode(session()->getFlashdata('pesan_swal')); ?>;
     if (flashdata) {
         Swal.fire({

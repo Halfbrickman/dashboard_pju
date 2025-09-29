@@ -1,45 +1,96 @@
 <main class="content">
-    <div class="container-fluid p-0">
-        <h1 class="h3 mb-3 fw-bold"><?= isset($user) ? 'Edit Pengguna: ' . esc($user['username']) : 'Tambah Pengguna Baru' ?></h1>
+<div class="container-fluid p-0">
+    <h1 class="h3 mb-3 fw-bold"><?= isset($user) ? 'Edit Pengguna: ' . esc($user['username']) : 'Tambah Pengguna Baru' ?></h1>
 
-        <div class="row">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-body">
-                        <?php $actionUrl = isset($user) ? 'users/update/' . esc($user['id']) : 'users/save'; ?>
-                        <?= form_open($actionUrl); ?>
-                            <?= csrf_field(); ?>
+    <div class="row justify-content-center"> <div class="col-lg-12 col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <?php $actionUrl = isset($user) ? 'users/update/' . esc($user['id']) : 'users/save'; ?>
+                    
+                    <?= form_open($actionUrl); ?>
+                        <?= csrf_field(); ?>
+                        
+                        <div class="mb-3">
+                            <label for="nama" class="form-label">Nama Lengkap</label>
+                            <input type="text" class="form-control" id="nama" name="nama" value="<?= old('nama', isset($user) ? esc($user['nama']) : '') ?>" required>
+                            <?php if(session('errors.nama')): ?>
+                                <small class="text-danger"><?= session('errors.nama') ?></small>
+                            <?php endif ?>
+                        </div>
 
-                            <div class="mb-3">
-                                <label for="username" class="form-label">Nama Pengguna</label>
-                                <input type="text" class="form-control form-control-md" id="username" name="username" value="<?= isset($user) ? esc($user['username']) : '' ?>" required>
-                            </div>
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" name="username" value="<?= old('username', isset($user) ? esc($user['username']) : '') ?>" required>
+                            <?php if(session('errors.username')): ?>
+                                <small class="text-danger"><?= session('errors.username') ?></small>
+                            <?php endif ?>
+                        </div>
 
-                            <div class="mb-3">
-                                <label for="password" class="form-label">Password <?= isset($user) ? '(Kosongkan jika tidak ingin diubah)' : '' ?></label>
-                                <input type="password" class="form-control form-control-md" id="password" name="password" <?= !isset($user) ? 'required' : '' ?>>
-                            </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password <?= isset($user) ? '(Kosongkan jika tidak ingin diubah)' : '' ?></label>
+                            <input type="password" class="form-control" id="password" name="password" <?= !isset($user) ? 'required' : '' ?>>
+                            <?php if(session('errors.password')): ?>
+                                <small class="text-danger"><?= session('errors.password') ?></small>
+                            <?php endif ?>
+                        </div>
 
-                            <div class="mb-3">
-                                <label for="password_confirm" class="form-label">Ulangi Password</label>
-                                <input class="form-control form-control-md" type="password" name="password_confirm" placeholder="Ulangi password baru" />
-                            </div>
+                        <div class="mb-3">
+                            <label for="password_confirm" class="form-label">Ulangi Password</label>
+                            <input class="form-control" type="password" name="password_confirm" placeholder="Ulangi password baru" />
+                            <?php if(session('errors.password_confirm')): ?>
+                                <small class="text-danger"><?= session('errors.password_confirm') ?></small>
+                            <?php endif ?>
+                        </div>
 
-                            <div class="mb-3">
-                                <label for="role_id" class="form-label">Pilih Peran (Role)</label>
-                                <select class="form-select" id="role_id" name="role_id" required>
-                                    <option value="">Pilih...</option>
-                                    <option value="1" <?= isset($user) && $user['role_id'] == 1 ? 'selected' : '' ?>>Admin</option>
-                                    <option value="2" <?= isset($user) && $user['role_id'] == 2 ? 'selected' : '' ?>>Pengguna Biasa</option>
-                                </select>
-                            </div>
+                        <div class="mb-3">
+                            <label for="role_id" class="form-label">Pilih Peran (Role)</label>
+                            <select class="form-select" id="role_id" name="role_id" required>
+                                <option value="">Pilih...</option>
+                                <?php if (!empty($roles)): ?>
+                                    <?php foreach ($roles as $role): ?>
+                                        <option value="<?= esc($role['id']) ?>"
+                                            <?= old('role_id', isset($user) ? $user['role_id'] : '') == $role['id'] ? 'selected' : '' ?>>
+                                            <?= esc($role['nama_roles']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                                <?php if (isset($user) && $user['role_id'] == 1): ?>
+                                    <option value="1" selected disabled>Superadmin (Tidak dapat diubah)</option>
+                                <?php endif; ?>
+                            </select>
+                            <?php if(session('errors.role_id')): ?>
+                                <small class="text-danger"><?= session('errors.role_id') ?></small>
+                            <?php endif ?>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="id_sumberdata" class="form-label">Sumber Data (Opsional/Global)</label>
+                            <select class="form-select" id="id_sumberdata" name="id_sumberdata">
+                                <option value="">Global (Akses Semua Data)</option>
+                                <?php if (!empty($sumber_data)): ?>
+                                    <?php foreach ($sumber_data as $sumber): ?>
+                                        <option value="<?= esc($sumber['id_sumberdata']) ?>"
+                                            <?= old('id_sumberdata', isset($user) ? $user['id_sumberdata'] : '') == $sumber['id_sumberdata'] ? 'selected' : '' ?>>
+                                            <?= esc($sumber['nama_sumber']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </select>
+                            <small class="form-text text-muted">Kosongkan untuk memberikan akses ke semua data (Global).</small>
+                            <?php if(session('errors.id_sumberdata')): ?>
+                                <small class="text-danger"><?= session('errors.id_sumberdata') ?></small>
+                            <?php endif ?>
+                        </div>
 
-                            <button type="submit" class="btn btn-primary"><?= isset($user) ? 'Perbarui' : 'Simpan' ?></button>
+                        <div class="d-flex justify-content-end gap-2"> <button type="submit" class="btn btn-primary"><?= isset($user) ? 'Perbarui' : 'Simpan' ?></button>
                             <a href="<?= base_url('users') ?>" class="btn btn-secondary">Batal</a>
-                        <?= form_close(); ?>
-                    </div>
+                        </div>
+
+                    <?= form_close(); ?>
+                    
                 </div>
             </div>
         </div>
     </div>
+</div>
 </main>

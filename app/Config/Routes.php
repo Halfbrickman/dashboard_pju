@@ -11,19 +11,22 @@ $routes->get('/dashboard/downloadNotificationFile/(:num)', 'Dashboard::downloadN
 // Rute default yang mengarahkan ke halaman login
 $routes->get('/', 'AuthController::login');
 
-// Routes Sumber Data
-$routes->get('sumberdata', 'sumberDataController::index');
-$routes->get('sumberdata/form', 'sumberDataController::form');
-$routes->get('sumberdata/form/(:num)', 'sumberDataController::form/$1');
-$routes->post('sumberdata/saveOrUpdate', 'sumberDataController::saveOrUpdate');
-$routes->post('sumberdata/delete/(:any)', 'sumberDataController::delete/$1');
+// Routes Sumber Data (Ganti delete ke DELETE method)
+$routes->get('sumberdata', 'SumberDataController::index');
+$routes->get('sumberdata/form', 'SumberDataController::form');
+$routes->get('sumberdata/form/(:num)', 'SumberDataController::form/$1');
+$routes->post('sumberdata/saveOrUpdate', 'SumberDataController::saveOrUpdate');
+// Pastikan ini menggunakan DELETE method untuk konsistensi. Jika view menggunakan POST, ganti ke POST.
+$routes->delete('sumberdata/delete/(:any)', 'SumberDataController::delete/$1'); 
 
+// Routes Judul Keterangan (Pusat perubahan)
 $routes->group('judul-keterangan', function ($routes) {
     $routes->get('/', 'JudulKeteranganController::index');
     $routes->get('form', 'JudulKeteranganController::form');
     $routes->get('form/(:num)', 'JudulKeteranganController::form/$1');
     $routes->post('saveOrUpdate', 'JudulKeteranganController::saveOrUpdate');
-    $routes->delete('delete/(:num)', 'JudulKeteranganController::delete/$1');
+    // Rute ini akan digunakan untuk Soft Delete
+    $routes->delete('delete/(:num)', 'JudulKeteranganController::delete/$1'); 
 });
 
 // Perubahan Rute untuk Master Data Koordinat
@@ -31,7 +34,8 @@ $routes->get('koordinat', 'MasterDataController::index');
 $routes->get('koordinat/form', 'MasterDataController::form'); // Rute untuk form tambah
 $routes->get('koordinat/form/(:num)', 'MasterDataController::form/$1'); // Rute untuk form edit
 $routes->post('koordinat/save', 'MasterDataController::save');
-$routes->post('koordinat/delete/(:num)', 'MasterDataController::delete/$1');
+// Rute delete di Koordinat sebaiknya juga menggunakan DELETE jika ingin konsisten dengan soft delete
+$routes->post('koordinat/delete/(:num)', 'MasterDataController::delete/$1'); // Biarkan POST jika Anda menggunakan POST di view
 $routes->get('koordinat/import', 'KoordinatController::import');
 $routes->post('koordinat/upload', 'KoordinatController::upload');
 // Rute untuk mengunggah foto tanpa parameter
@@ -47,7 +51,6 @@ $routes->group('api', function ($routes) {
     // --- Rute untuk Peta ---
     $routes->get('markers', 'MapController::getMarkerData');
     $routes->post('markers/update', 'MapController::updateMarker');
-    // Hapus baris yang salah di sini: $routes->post('koordinat/delete_multiple', 'MasterDataController::deleteMultiple');
     $routes->post('koordinat/delete/(:num)', 'MapController::deleteMarker/$1');
     // Rute untuk menghapus foto
     $routes->post('photo/delete/(:num)', 'MapController::deletePhoto/$1');
@@ -81,7 +84,7 @@ $routes->post('/auth/processRegister', 'AuthController::processRegister'); // Ru
 $routes->get('dashboard', 'Dashboard::index', ['filter' => 'auth']);
 $routes->get('koordinat', 'Koordinat::index', ['filter' => 'auth']);
 $routes->get('sumberdata', 'SumberData::index', ['filter' => 'auth']);
-$routes->get('judul-keterangan', 'JudulKeterangan::index', ['filter' => 'auth']);
+$routes->get('judul-keterangan', 'JudulKeteranganController::index', ['filter' => 'auth']); // Ganti JudulKeterangan ke JudulKeteranganController
 
 //Rute Register Admin
 $routes->get('register/admin', 'AuthController::registerAdmin');
@@ -92,6 +95,8 @@ $routes->get('/register', 'AuthController::register');
 $routes->post('/auth/processRegister', 'AuthController::processRegister');
 
 // Rute CUD yang hanya bisa diakses admin
+// PENTING: Jika menggunakan group 'judul-keterangan' di atas, rute di bawah ini akan duplikat/redundant. 
+// Saya anggap Anda menggunakan rute di atas. Jika Anda ingin memisahkannya, pastikan konsisten.
 $routes->group('', ['filter' => 'admin'], function ($routes) {
     // Rute untuk Koordinat
     $routes->get('koordinat/form', 'Koordinat::form');
@@ -106,10 +111,11 @@ $routes->group('', ['filter' => 'admin'], function ($routes) {
     $routes->post('sumberdata/delete/(:num)', 'SumberData::delete/$1');
 
     // Rute untuk Judul Keterangan
-    $routes->get('judul-keterangan/form', 'JudulKeterangan::form');
-    $routes->get('judul-keterangan/form/(:num)', 'JudulKeterangan::form/$1');
-    $routes->post('judul-keterangan/save', 'JudulKeterangan::save');
-    $routes->post('judul-keterangan/delete/(:num)', 'JudulKeterangan::delete/$1');
+    $routes->get('judul-keterangan/form', 'JudulKeteranganController::form');
+    $routes->get('judul-keterangan/form/(:num)', 'JudulKeteranganController::form/$1');
+    $routes->post('judul-keterangan/save', 'JudulKeteranganController::save');
+    // Jika Anda menggunakan rute group 'judul-keterangan' di atas, nonaktifkan rute ini
+    // $routes->post('judul-keterangan/delete/(:num)', 'JudulKeteranganController::delete/$1'); 
 });
 
 // Tambahkan route ini di app/Config/Routes.php
@@ -118,4 +124,4 @@ $routes->get('users/create', 'UserController::create');
 $routes->post('users/save', 'UserController::save');
 $routes->get('users/edit/(:num)', 'UserController::edit/$1');
 $routes->post('users/update/(:num)', 'UserController::update/$1');
-$routes->get('users/delete/(:num)', 'UserController::delete/$1');
+$routes->delete('users/delete/(:num)', 'UserController::delete/$1');

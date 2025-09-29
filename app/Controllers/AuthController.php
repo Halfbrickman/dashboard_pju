@@ -3,14 +3,17 @@
 namespace App\Controllers;
 
 use App\Models\M_user;
+use CodeIgniter\Controller; // <-- Dihapus karena kelas ini extends BaseController
 
 class AuthController extends BaseController
 {
+    // Tampilkan halaman login
     public function login()
     {
         return view('auth/login');
     }
 
+    // Proses login pengguna
     public function processLogin()
     {
         $session = session();
@@ -24,17 +27,19 @@ class AuthController extends BaseController
         if ($user) {
             $hashedPassword = $user['password'];
             if (password_verify($password, $hashedPassword)) {
+                
+                // DATA SESSION DISESUAIKAN DENGAN FIELD BARU
                 $ses_data = [
-                    'id'         => $user['id'],
-                    'username'   => $user['username'],
-                    'role_id'    => $user['role_id'],
-                    'isLoggedIn' => true
+                    'id'            => $user['id'],
+                    'username'      => $user['username'],
+                    'nama'          => $user['nama'] ?? $user['username'], // Ambil nama, jika null gunakan username
+                    'role_id'       => $user['role_id'],
+                    'id_sumberdata' => $user['id_sumberdata'], // Tambahkan id_sumberdata
+                    'isLoggedIn'    => true
                 ];
                 $session->set($ses_data);
 
-                // Arahkan semua pengguna (admin & user biasa) ke dashboard yang sama
                 return redirect()->to('/dashboard');
-                
             } else {
                 // Password salah
                 $session->setFlashdata('msg', 'Username atau password salah.');
@@ -47,16 +52,16 @@ class AuthController extends BaseController
         }
     }
 
+    // Tampilkan form registrasi admin (hanya untuk development)
     public function registerAdmin()
     {
-        // Pastikan halaman ini hanya bisa diakses dalam mode development
         if (ENVIRONMENT !== 'development') {
             return redirect()->to('/');
         }
-
         return view('auth/register_admin');
     }
 
+    // Proses registrasi admin
     public function processRegisterAdmin()
     {
         $session = session();
@@ -69,10 +74,13 @@ class AuthController extends BaseController
         ];
 
         if ($this->validate($rules)) {
+            // DATA REGISTRASI ADMIN DISESUAIKAN
             $data = [
                 'username' => $this->request->getVar('username'),
                 'password' => password_hash($this->request->getVar('password'), PASSWORD_BCRYPT),
-                'role_id'  => 1 // role_id 1 diasumsikan untuk admin
+                'nama'     => $this->request->getVar('username'), // Default: nama sama dengan username
+                'role_id'  => 1, // Role Admin
+                'id_sumberdata' => null // Default: null untuk admin
             ];
             
             $userModel->insert($data);
@@ -81,19 +89,18 @@ class AuthController extends BaseController
             return redirect()->to('/login');
 
         } else {
-            // Jika validasi gagal, kembali ke halaman register dengan pesan error
             $session->setFlashdata('msg', $this->validator->listErrors());
             return redirect()->back()->withInput();
         }
     }
 
-    // Register User
+    // Tampilkan form registrasi user biasa
     public function register()
     {
-        // Tampilkan form registrasi
         return view('auth/register');
     }
 
+    // Proses registrasi user biasa
     public function processRegister()
     {
         $rules = [
@@ -106,20 +113,23 @@ class AuthController extends BaseController
             return redirect()->back()->withInput()->with('error', $this->validator->listErrors());
         }
 
-        $modelUser = new \App\Models\M_user(); // Ganti dengan nama model user Anda
+        $modelUser = new M_user();
+        // DATA REGISTRASI USER BIASA DISESUAIKAN
         $userData = [
             'username' => $this->request->getPost('username'),
             'password' => password_hash($this->request->getPost('password'), PASSWORD_DEFAULT),
-            'role_id' => 2 // Default role untuk user biasa (misal: 2)
+            'nama'     => $this->request->getPost('username'), // Default: nama sama dengan username
+            'role_id' => 2, // Role User Biasa
+            'id_sumberdata' => null // Default: null untuk user biasa
         ];
 
         $modelUser->insert($userData);
 
-        // Redirect ke halaman login dengan pesan sukses
         session()->setFlashdata('pesan_swal', 'Akun berhasil dibuat! Silakan login.');
         return redirect()->to('/login');
     }
 
+    // Logout
     public function logout()
     {
         $session = session();

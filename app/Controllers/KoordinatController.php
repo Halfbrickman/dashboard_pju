@@ -108,12 +108,15 @@ class KoordinatController extends BaseController
                 }
 
                 $idSumberData = $sumberDataMap[strtolower($rowData['sumber data'])] ?? null;
-                $idKotaKab = $kotaKabMap[strtolower($rowData['kota/kab'])] ?? null;
-                $idKecamatan = $kecamatanMap[strtolower($rowData['kecamatan'])] ?? null;
-                $idKelurahan = $kelurahanMap[strtolower($rowData['kelurahan'])] ?? null;
+                
+                // Mengambil nilai wilayah, jika kosong akan diisi null
+                $idKotaKab = !empty($rowData['kota/kab']) ? ($kotaKabMap[strtolower($rowData['kota/kab'])] ?? null) : null;
+                $idKecamatan = !empty($rowData['kecamatan']) ? ($kecamatanMap[strtolower($rowData['kecamatan'])] ?? null) : null;
+                $idKelurahan = !empty($rowData['kelurahan']) ? ($kelurahanMap[strtolower($rowData['kelurahan'])] ?? null) : null;
 
-                if (!$idSumberData || !$idKotaKab || !$idKecamatan || !$idKelurahan) {
-                    $failedRows[] = "Baris " . ($index) . ": Data master (Sumber Data/Wilayah) tidak valid atau tidak ditemukan.";
+                // Cek hanya untuk sumber data, karena kota/kab, kecamatan, dan kelurahan bisa kosong
+                if (!$idSumberData) {
+                    $failedRows[] = "Baris " . ($index) . ": Data Sumber Data tidak valid atau tidak ditemukan.";
                     continue;
                 }
 

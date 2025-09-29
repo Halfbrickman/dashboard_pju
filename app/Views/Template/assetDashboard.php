@@ -19,9 +19,7 @@
 
         // 3. Inisialisasi Grup Cluster untuk Marker
         var markers = L.markerClusterGroup({
-            // Opsi tambahan untuk cluster bisa ditaruh di sini, contoh:
-            // maxClusterRadius: 80,
-            // chunkedLoading: true
+            disableClusteringAtZoom: 17
         });
 
         // 4. Proses Pembuatan Semua Marker (Metode Cepat)

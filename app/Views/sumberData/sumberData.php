@@ -18,8 +18,11 @@
                         <table class="table table-hover my-0">
                             <thead>
                                 <tr>
-                                    <th>No.</th> <th>Nama Sumber Data</th>
+                                    <th>No.</th> 
+                                    <th>Nama Sumber Data</th>
                                     <th>Warna Marker</th>
+                                    <th>Dibuat Pada</th> 
+                                    <th>Diperbarui Pada</th>
                                     <?php if (session()->get('role_id') == 1) : ?>
                                         <th class="text-center">Aksi</th>
                                     <?php endif; ?>
@@ -29,16 +32,20 @@
                                 <?php if (!empty($sumber_data)) : ?>
                                     <?php $no = 1; ?> <?php foreach ($sumber_data as $sumber) : ?>
                                         <tr>
-                                            <td><?= $no++; ?></td> <td><?= esc($sumber['nama_sumber']); ?></td>
+                                            <td><?= $no++; ?></td> 
+                                            <td><?= esc($sumber['nama_sumber']); ?></td>
                                             <td style="display: flex; gap: 10px; align-items: center;">
                                                 <div style="width: 30px; height: 30px; background-color: <?= esc($sumber['warna']); ?>; border-radius: 25%;"></div>
                                                 <div><?= esc($sumber['warna']); ?></div>
                                             </td>
+                                            <td><?= esc($sumber['created_at'] ?? 'N/A'); ?></td>
+                                            <td><?= esc($sumber['updated_at'] ?? 'Belum Diperbarui'); ?></td>
                                             <?php if (session()->get('role_id') == 1) : ?>
                                                 <td class="text-end" style="width: 150px;">
                                                     <a href="/sumberdata/form/<?= esc($sumber['id_sumberdata']); ?>" class="btn btn-warning btn-sm" style="border-radius: 10px;">Edit</a>
                                                     <form id="delete-form-<?= esc($sumber['id_sumberdata']); ?>" action="/sumberdata/delete/<?= esc($sumber['id_sumberdata']); ?>" method="post" class="d-inline">
                                                         <?= csrf_field(); ?>
+                                                        <input type="hidden" name="_method" value="POST"> 
                                                         <button type="button" class="btn btn-danger btn-sm delete-btn" style="border-radius: 10px;" data-id="<?= esc($sumber['id_sumberdata']); ?>" data-name="<?= esc($sumber['nama_sumber']); ?>">Hapus</button>
                                                     </form>
                                                 </td>
@@ -47,7 +54,7 @@
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="<?= (session()->get('role_id') == 1) ? '4' : '3' ?>" class="text-center">Tidak ada data sumber ditemukan.</td>
+                                        <td colspan="<?= (session()->get('role_id') == 1) ? '6' : '5' ?>" class="text-center">Tidak ada data sumber ditemukan.</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>
@@ -79,7 +86,7 @@
                 
                 Swal.fire({
                     title: 'Apakah Anda yakin?',
-                    text: `Data sumber "${name}" akan dihapus. Anda tidak akan bisa mengembalikannya!`,
+                    text: `Data sumber "${name}" akan dihapus.`, // Ganti teks untuk soft delete
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#d33',
