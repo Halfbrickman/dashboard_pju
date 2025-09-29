@@ -3,6 +3,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css" />
 
 <style>
+    /* CSS yang sudah ada */
     .source-filter-container {
         border: 1px solid #ced4da;
         border-radius: 0.25rem;
@@ -10,15 +11,19 @@
         max-height: 150px;
         overflow-y: auto;
         background-color: #f8f9fa;
-        /
-        display: flex;
-        flex-wrap: wrap;
+        
+        /* --- KODE TAMBAHAN UNTUK 2-2 LAYOUT --- */
+        display: flex;         /* Aktifkan Flexbox */
+        flex-wrap: wrap;       /* Izinkan item pindah ke baris baru */
     }
 
     .source-filter-container .form-check {
+        /* Tetapkan lebar agar hanya mengambil 50% ruang (dua kolom) */
         width: 50%; 
+        /* Pastikan tidak ada margin berlebih yang mengganggu 50% */
         margin-right: 0;
     }
+    /* -------------------------------------- */
     
     .form-check-label {
         font-size: 0.9rem;

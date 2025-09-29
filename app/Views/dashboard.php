@@ -4,6 +4,49 @@
 		<h1 class="h3 mb-3"><strong>Dashboard PJU</strong></h1>
 
 		<div class="row">
+			<div class="col-12">
+				<div class="card">
+					<div class="card-header">
+						<h5 class="card-title mb-0">
+							<i class="align-middle" data-feather="bell"></i> Notifikasi Upload Terbaru
+						</h5>
+					</div>
+					<div class="list-group list-group-flush">
+						<?php if (!empty($notifikasi)) : ?>
+							<?php foreach ($notifikasi as $notif) : ?>
+								<div class="list-group-item">
+									<div class="d-flex align-items-center">
+										<div class="flex-grow-1">
+											<div class="d-flex justify-content-between">
+												<div>
+													<strong><?= esc($notif['pesan']); ?></strong>
+													<div class="text-muted small mt-1">
+														File: <?= esc($notif['nama_file']); ?> | Tipe: <?= ucfirst(esc($notif['tipe'])); ?> | Waktu: <?= date('d M Y, H:i', strtotime($notif['created_at'])); ?>
+													</div>
+												</div>
+												<div class="ms-3">
+													<a href="<?= site_url('dashboard/downloadNotificationFile/' . $notif['id']); ?>" class="btn btn-primary btn-sm">
+														<i class="align-middle" data-feather="download"></i> Download
+													</a>
+												</div>
+											</div>
+										</div>
+									</div>
+								</div>
+							<?php endforeach; ?>
+						<?php else : ?>
+							<div class="list-group-item">
+								<div class="text-center text-muted py-3">
+									Tidak ada notifikasi baru.
+								</div>
+							</div>
+						<?php endif; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="row">
 			<div class="col-xl-6 col-xxl-5 d-flex">
 				<div class="w-100">
 					<div class="row">
@@ -74,49 +117,6 @@
 					</div>
 				</div>
 			</div>
-		</div>
-
-		<div class="row">
-			<div class="col-12">
-				<div class="card">
-					<div class="card-header">
-						<h5 class="card-title mb-0">
-							<i class="align-middle" data-feather="bell"></i> Notifikasi Upload Terbaru
-						</h5>
-					</div>
-					<div class="list-group list-group-flush">
-						<?php if (!empty($notifikasi)) : ?>
-							<?php foreach ($notifikasi as $notif) : ?>
-								<div class="list-group-item">
-									<div class="d-flex align-items-center">
-										<div class="flex-grow-1">
-											<div class="d-flex justify-content-between">
-												<div>
-													<strong><?= esc($notif['pesan']); ?></strong>
-													<div class="text-muted small mt-1">
-														File: <?= esc($notif['nama_file']); ?> | Tipe: <?= ucfirst(esc($notif['tipe'])); ?> | Waktu: <?= date('d M Y, H:i', strtotime($notif['created_at'])); ?>
-													</div>
-												</div>
-												<div class="ms-3">
-													<a href="<?= site_url('dashboard/downloadNotificationFile/' . $notif['id']); ?>" class="btn btn-primary btn-sm">
-														<i class="align-middle" data-feather="download"></i> Download
-													</a>
-												</div>
-											</div>
-										</div>
-									</div>
-								</div>
-							<?php endforeach; ?>
-						<?php else : ?>
-							<div class="list-group-item">
-								<div class="text-center text-muted py-3">
-									Tidak ada notifikasi baru.
-								</div>
-							</div>
-						<?php endif; ?>
-					</div>
-				</div>
-			</div>
-		</div>
+		</div>	
 	</div>
 </main>
