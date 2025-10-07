@@ -1,1 +1,0 @@
-__ci_last_regenerate|i:1758854725;id|s:1:"1";username|s:5:"admin";role_id|s:1:"1";isLoggedIn|b:1;_ci_previous_url|s:38:"http://localhost:8080/koordinat/import";error|s:98:"Terjadi error saat memproses file: Call to undefined method App\Models\M_Wilayah::getKecamatanById";__ci_vars|a:1:{s:5:"error";s:3:"old";}

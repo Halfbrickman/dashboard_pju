@@ -402,7 +402,7 @@ class MapController extends BaseController
     public function exportKML()
     {
         // --- AWAL LOGIKA MULTIPLE FILTER ---
-        $sumber_ids_raw = $this->request->getGet('sumber_data_id');
+        $sumber_ids_raw = $this->request->getGet('sumber_data_ids');
         $sumber_ids = $sumber_ids_raw ? array_map('intval', explode(',', $sumber_ids_raw)) : null;
         // --- AKHIR LOGIKA MULTIPLE FILTER ---
 
@@ -463,7 +463,7 @@ class MapController extends BaseController
         ini_set('max_execution_time', 300);
 
         // --- AWAL LOGIKA MULTIPLE FILTER ---
-        $sumber_ids_raw = $this->request->getGet('sumber_data_id');
+        $sumber_ids_raw = $this->request->getGet('sumber_data_ids');
         $sumber_ids = $sumber_ids_raw ? array_map('intval', explode(',', $sumber_ids_raw)) : null;
         // --- AKHIR LOGIKA MULTIPLE FILTER ---
 
@@ -568,7 +568,7 @@ class MapController extends BaseController
         ini_set('max_execution_time', 300);
 
         // --- AWAL LOGIKA MULTIPLE FILTER ---
-        $sumber_ids_raw = $this->request->getGet('sumber_data_id');
+        $sumber_ids_raw = $this->request->getGet('sumber_data_ids');
         $sumber_ids = $sumber_ids_raw ? array_map('intval', explode(',', $sumber_ids_raw)) : null;
         // --- AKHIR LOGIKA MULTIPLE FILTER ---
 
