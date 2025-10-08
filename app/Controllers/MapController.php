@@ -404,7 +404,7 @@ class MapController extends BaseController
             // Jika useSoftDeletes di M_koordinat TRUE, maka delete() otomatis soft delete
             if ($this->koordinatModel->delete($id)) { 
                 $db->transCommit();
-                return $this->response->setJSON(['status' => 'success', 'message' => 'Data berhasil dihapus (soft delete).']);
+                return $this->response->setJSON(['status' => 'success', 'message' => 'Data berhasil dihapus.']);
             } else {
                 $db->transRollback();
                 // Mengembalikan respons JSON yang gagal

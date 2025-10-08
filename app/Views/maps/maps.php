@@ -260,7 +260,7 @@
                     <i class="fas fa-edit"></i> Edit
                 </button>
                 <button class="btn btn-danger btn-sm" onclick="confirmDeleteMarker('${item.id_koordinat}')" style="border-radius: 10px;">
-                    <i class="fas fa-trash-alt"></i> Hapus (Soft Delete)
+                    <i class="fas fa-trash-alt"></i> Hapus
                 </button>
                 <br><br>
             `;
@@ -599,12 +599,12 @@
     function confirmDeleteMarker(id) {
         Swal.fire({
             title: 'Apakah Anda yakin?',
-            text: "Data marker akan diarsipkan (Soft Delete). Anda dapat memulihkannya jika dibutuhkan.",
+            text: "Data marker akan dihapus.",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#3085d6',
             cancelButtonColor: '#d33',
-            confirmButtonText: 'Ya, Soft Delete!',
+            confirmButtonText: 'Ya',
             cancelButtonText: 'Batal'
         })
         .then((result) => {
@@ -630,7 +630,7 @@
                     if (data.status === 'success') {
                         Swal.fire(
                             'Dihapus!',
-                            'Data telah berhasil diarsipkan (Soft Delete).',
+                            'Data telah berhasil dihapus.',
                             'success'
                         ).then(() => {
                             // Muat ulang marker untuk menghilangkan marker yang dihapus dari peta

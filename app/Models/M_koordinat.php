@@ -10,32 +10,30 @@ class M_koordinat extends Model
     protected $primaryKey = 'id_koordinat';
     
     // AKTIFKAN Timestamps karena kolomnya ADA di DB
-    protected $useTimestamps    = true;
-    protected $dateFormat       = 'datetime';
-    protected $createdField     = 'created_at';
-    protected $updatedField     = 'updated_at';
+    protected $useTimestamps      = true;
+    protected $dateFormat         = 'datetime';
+    protected $createdField       = 'created_at';
+    protected $updatedField       = 'updated_at';
     
     // Aktifkan Fitur Soft Delete
     protected $useSoftDeletes = true;
     protected $deletedField   = 'deleted_at'; 
     
-    // ** PENTING: TAMBAHKAN created_at dan updated_at ke allowedFields **
-    // Ini memastikan Model tidak mengabaikan kolom waktu meskipun ada hook kustom.
+    // ** PENTING: PASTIKAN SEMUA KOLOM TERMASUK deleted_by ADA DI SINI **
     protected $allowedFields = [
         'id_kec', 'id_kel', 'id_sumberdata', 'id_jdlketerangan', 'id_kotakab', 
         'nomor_gardu', 'tipe_gardu', 'daya_gardu', 'nomor_tiang', 'nomor_pju', 
         'nomor_pelanggan', 'latitude', 'longitude', 'keterangan_lokasi', 
         'kondisi_pju', 'daya_pju', 
-        // Kolom Waktu
-        'created_at', 
-        'updated_at',
-        // Kolom User
+        // Kolom Waktu dan User
+        'created_at', 'updated_at',
         'created_by', 'updated_by', 'deleted_by' 
     ];
     
     // HOOKS
     protected $beforeUpdate = ['setUpdatedBy'];
     protected $beforeInsert = ['setCreatedBy'];
+    protected $beforeDelete = ['setDeletedBy']; // <-- Hook baru ditambahkan
     
     /**
      * Set the creator user ID/name before inserting
@@ -59,6 +57,32 @@ class M_koordinat extends Model
             $data['data']['updated_by'] = session()->get('nama') ?? 'System/Guest';
         }
         return $data;
+    }
+    
+    /**
+     * Set the deleted user ID/name before soft delete operation.
+     */
+    protected function setDeletedBy(array $data)
+    {
+        // Mendapatkan nama pengguna dari sesi
+        $deletedBy = session()->get('nama') ?? 'System/Guest';
+        $now = date('Y-m-d H:i:s');
+        
+        if (!empty($data['id'])) {
+            // Kita perlu melakukan UPDATE eksplisit untuk kolom 'deleted_by' karena 
+            // Model CI4 hanya menangani 'deleted_at' secara default saat delete($id).
+            
+            // Gunakan Query Builder murni untuk melakukan update
+            $this->builder()
+                 ->whereIn($this->primaryKey, $data['id'])
+                 // Set kolom deleted_by dan updated_by secara manual
+                 ->set(['deleted_by' => $deletedBy, 'updated_at' => $now]) 
+                 ->update();
+        }
+
+        // Kembalikan $data. Ini memungkinkan Model CI4 untuk melanjutkan proses
+        // soft delete-nya (mengisi kolom 'deleted_at' dan timestamp lainnya).
+        return $data; 
     }
     
     // Fungsi untuk membangun kueri JOIN. Soft Delete otomatis ditambahkan.
