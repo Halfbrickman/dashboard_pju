@@ -91,28 +91,47 @@ class UserController extends Controller
     // Memproses data dari form edit
     public function update($id)
     {
+        // 1. Ambil data pengguna lama yang sedang diedit
+        $userLama = $this->userModel->find($id);
+        
         $rules = [
             'nama'             => 'required|min_length[3]|max_length[255]',
             'username'         => "required|min_length[5]|max_length[20]|is_unique[users.username,id,{$id}]",
             'password'         => 'permit_empty|min_length[8]|max_length[255]',
             'password_confirm' => 'matches[password]',
-            'role_id'          => 'required|integer|not_in_list[1]'
+            'role_id'          => 'required|integer|not_in_list[1]' // Aturan default
         ];
 
+        // 2. KONDISIONAL: Hapus aturan role_id jika pengguna yang diedit adalah Superadmin
+        if ($userLama && $userLama['role_id'] == 1) {
+            // Jika pengguna adalah Superadmin (ID 1), hapus aturan role_id dari validasi.
+            // Ini akan memastikan nilai 1 yang dikirim oleh form tidak ditolak.
+            unset($rules['role_id']); 
+        }
+
+        // 3. Jalankan Validasi
         if (!$this->validate($rules)) {
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
+        // 4. Siapkan Data untuk Update
         $data = [
             'nama'          => $this->request->getVar('nama'),
             'username'      => $this->request->getVar('username'),
+            // 'role_id' hanya akan ada di $data jika BUKAN Superadmin
             'role_id'       => $this->request->getVar('role_id'),
             'id_sumberdata' => $this->request->getVar('id_sumberdata') ?: null,
         ];
 
+        // 5. Tambahkan password jika diisi (Hook di Model juga menangani hash, tapi ini lebih eksplisit)
         if ($this->request->getVar('password')) {
             $data['password'] = password_hash($this->request->getVar('password'), PASSWORD_DEFAULT);
         }
+        
+        // PENTING: Jika $data['role_id'] adalah null (karena Superadmin), Model akan mengabaikannya
+        // berkat hook 'handleSuperadminRole' yang sudah kita buat.
+        // Namun, jika Superadmin, $data['role_id'] tidak akan terkirim dari view, 
+        // tapi jika terkirim, hook Model akan menghapusnya.
 
         $this->userModel->update($id, $data);
         // SweetAlert: Flash message untuk success

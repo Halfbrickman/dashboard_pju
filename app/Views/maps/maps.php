@@ -179,6 +179,9 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-p4NxAoJBhIINf0e7v/aRj9Lz/y2YVzN9fQ5E0d2PzV5A=" crossorigin=""></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
 <script>
+    // Pastikan BASE_URL didefinisikan dengan benar
+    const BASE_URL = "<?= base_url() ?>"; 
+
     const allJudulKeterangan = <?= json_encode($judul_keterangan); ?>;
     const isAdmin = <?= session()->get('role_id') == 1 ? 'true' : 'false'; ?>;
     let allMarkersData = [];
@@ -213,6 +216,9 @@
         imageModal.show();
     }
 
+    // =========================================================================
+    // MODIFIKASI: Mengubah fungsi renderPopupContent
+    // =========================================================================
     function renderPopupContent(item) {
         let popupContent = `
             <strong>Sumber Data:</strong> ${item.nama_sumber || '-'}<br>
@@ -238,24 +244,37 @@
             popupContent += `</div><hr>`;
         }
 
+        // Tambahkan Keterangan Tambahan
+        if (item.keterangan && item.keterangan.length > 0) {
+             popupContent += `<h6>Keterangan Tambahan:</h6>`;
+             item.keterangan.forEach(keterangan => {
+                 popupContent += `<strong>${keterangan.jdl_keterangan}:</strong> ${keterangan.isi_keterangan}<br>`;
+             });
+             popupContent += `<hr>`;
+        }
+
+
         if (isAdmin) {
             popupContent += `
                 <button onclick="openEditModal('${item.id_koordinat}')" class="btn btn-warning btn-sm" style="border-radius: 10px; margin-right: 5px;">
                     <i class="fas fa-edit"></i> Edit
                 </button>
-                <button class="btn btn-danger btn-sm" onclick="confirmDelete('${item.id_koordinat}')" style="border-radius: 10px;">
-                    <i class="fas fa-trash-alt"></i> Hapus
+                <button class="btn btn-danger btn-sm" onclick="confirmDeleteMarker('${item.id_koordinat}')" style="border-radius: 10px;">
+                    <i class="fas fa-trash-alt"></i> Hapus (Soft Delete)
                 </button>
                 <br><br>
             `;
         }
 
         popupContent += `
-            <a href="https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}" target="_blank" class="btn btn-info btn-sm">Lihat di Google Maps</a>
+            <a href="http://maps.google.com/maps?q=${item.latitude},${item.longitude}" target="_blank" class="btn btn-info btn-sm">Lihat di Google Maps</a>
         `;
 
         return popupContent;
     }
+    // =========================================================================
+    // AKHIR MODIFIKASI renderPopupContent
+    // =========================================================================
 
     function loadMarkers() {
         markers.clearLayers();
@@ -391,7 +410,7 @@
                 <div id="photo-${photo.id_photo}" class="position-relative">
                     <img src="<?= base_url(); ?>${photo.file_path}" class="img-thumbnail" style="width: 100px; height: 100px; object-fit: cover;">
                     <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 p-1" style="font-size: 0.75rem; border-radius: 50%;" 
-                                onclick="confirmDeletePhoto('${photo.id_photo}')">
+                                 onclick="confirmDeletePhoto('${photo.id_photo}')">
                         ×
                     </button>
                 </div>
@@ -427,7 +446,8 @@
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': '<?= csrf_hash() ?>'
+                    // Pastikan Anda mendapatkan CSRF token dengan benar jika menggunakan CodeIgniter CSRF protection
+                    'X-CSRF-TOKEN': '<?= csrf_hash() ?>' 
                 }
             })
             .then(response => response.json())
@@ -440,10 +460,16 @@
                         photoElement.remove();
                     }
 
+                    // Perbarui data lokal dan popup agar perubahan terlihat tanpa reload
                     const markerData = allMarkersData.find(m => m.photos.some(p => p.id_photo == photoId));
                     if (markerData) {
                         markerData.photos = markerData.photos.filter(p => p.id_photo != photoId);
-                        markerLayers[markerData.id_koordinat].bindPopup(renderPopupContent(markerData));
+                        // Perbarui popup marker yang sedang terbuka
+                        if(markerLayers[markerData.id_koordinat].getPopup().isOpen()){
+                             markerLayers[markerData.id_koordinat].setPopupContent(renderPopupContent(markerData)).openPopup();
+                        } else {
+                             markerLayers[markerData.id_koordinat].bindPopup(renderPopupContent(markerData));
+                        }
                     }
 
                 } else {
@@ -515,8 +541,12 @@
         const id = document.getElementById('edit_id_koordinat').value;
         const keteranganData = {};
         document.querySelectorAll('#additional-details-container input').forEach(input => {
-            const idJdlKeterangan = input.name.match(/\[(\d+)\]/)[1];
-            keteranganData[idJdlKeterangan] = input.value;
+             // Pastikan name attribute di modal adalah 'keterangan[ID]'
+             const match = input.name.match(/\[(\d+)\]/); 
+             if(match) {
+                 const idJdlKeterangan = match[1];
+                 keteranganData[idJdlKeterangan] = input.value;
+             }
         });
 
         const photosInput = document.getElementById('photos_new');
@@ -563,63 +593,79 @@
             });
     });
 
-    function confirmDelete(id) {
+    // =========================================================================
+    // FUNGSI BARU: Soft Delete Marker
+    // =========================================================================
+    function confirmDeleteMarker(id) {
         Swal.fire({
-                title: 'Apakah Anda yakin?',
-                text: "Anda tidak akan dapat mengembalikan ini!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Ya, hapus!',
-                cancelButtonText: 'Batal'
-            })
-            .then((result) => {
-                if (result.isConfirmed) {
-                    fetch('<?= base_url('api/koordinat/delete/'); ?>' + id, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'X-CSRF-TOKEN': '<?= csrf_hash() ?>'
-                            }
-                        })
-                        .then(response => {
-                            if (!response.ok) {
-                                return response.json().then(errorData => {
-                                    throw new Error(errorData.message || 'Network response was not ok');
-                                });
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data.status === 'success') {
-                                Swal.fire(
-                                    'Dihapus!',
-                                    'Data telah berhasil dihapus.',
-                                    'success'
-                                ).then(() => {
-                                    loadMarkers();
-                                });
-                            } else {
-                                Swal.fire(
-                                    'Gagal!',
-                                    data.message,
-                                    'error'
-                                );
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            Swal.fire(
-                                'Gagal!',
-                                'Terjadi kesalahan saat menghapus data. ' + error.message,
-                                'error'
-                            );
+            title: 'Apakah Anda yakin?',
+            text: "Data marker akan diarsipkan (Soft Delete). Anda dapat memulihkannya jika dibutuhkan.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Ya, Soft Delete!',
+            cancelButtonText: 'Batal'
+        })
+        .then((result) => {
+            if (result.isConfirmed) {
+                // Panggil endpoint deleteMarker di MapController
+                fetch('<?= base_url('map/deleteMarker/'); ?>' + id, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': '<?= csrf_hash() ?>'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                         // Tangani error HTTP
+                        return response.json().then(errorData => {
+                             throw new Error(errorData.message || 'Network response was not ok');
                         });
-                }
-            });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status === 'success') {
+                        Swal.fire(
+                            'Dihapus!',
+                            'Data telah berhasil diarsipkan (Soft Delete).',
+                            'success'
+                        ).then(() => {
+                            // Muat ulang marker untuk menghilangkan marker yang dihapus dari peta
+                            loadMarkers();
+                        });
+                    } else {
+                        Swal.fire(
+                            'Gagal!',
+                            data.message,
+                            'error'
+                        );
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    Swal.fire(
+                        'Gagal!',
+                        'Terjadi kesalahan saat menghapus data. ' + error.message,
+                        'error'
+                    );
+                });
+            }
+        });
     }
+
+    // FUNGSI LAMA: Dibiarkan kosong atau dihapus karena sudah diganti oleh confirmDeleteMarker
+    function confirmDelete(id) {
+        // Fungsi ini sekarang tidak digunakan karena confirmDeleteMarker() yang dipanggil di popup.
+        // Anda bisa menghapus fungsi ini sepenuhnya jika sudah yakin semua tombol delete memanggil confirmDeleteMarker.
+        console.warn(`Fungsi confirmDelete(${id}) dipanggil. Seharusnya memanggil confirmDeleteMarker.`);
+        confirmDeleteMarker(id); // Alihkan ke fungsi soft delete
+    }
+    // =========================================================================
+    // AKHIR FUNGSI Soft Delete Marker
+    // =========================================================================
 
     const sourceCheckboxes = document.querySelectorAll('.source-checkbox');
     const filterKota = document.getElementById('filterKota');

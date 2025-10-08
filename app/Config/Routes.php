@@ -70,6 +70,7 @@ $routes->get('/api/markers', 'MapController::getMarkerData');
 $routes->get('map/exportKML', 'MapController::exportKML');
 $routes->get('map/exportExcel', 'MapController::exportExcel');
 $routes->get('map/exportPDF', 'MapController::exportPDF');
+$routes->post('map/deleteMarker/(:num)', 'MapController::deleteMarker/$1');
 
 $routes->get('galeri', 'GaleriController::index');
 

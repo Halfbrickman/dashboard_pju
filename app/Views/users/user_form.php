@@ -44,21 +44,54 @@
 
                         <div class="mb-3">
                             <label for="role_id" class="form-label">Pilih Peran (Role)</label>
-                            <select class="form-select" id="role_id" name="role_id" required>
-                                <option value="">Pilih...</option>
-                                <?php if (!empty($roles)): ?>
-                                    <?php foreach ($roles as $role): ?>
-                                        <option value="<?= esc($role['id']) ?>"
-                                            <?= old('role_id', isset($user) ? $user['role_id'] : '') == $role['id'] ? 'selected' : '' ?>>
-                                            <?= esc($role['nama_roles']) ?>
-                                        </option>
-                                    <?php endforeach; ?>
+                            
+                            <?php if (isset($user) && $user['role_id'] == 1): ?>
+                                <!-- 
+                                JIKA SUPERADMIN (ID 1) SAAT EDIT:
+                                Role tidak dapat diubah, kirim nilai '1' secara hidden.
+                                -->
+                                <input type="hidden" name="role_id" value="1">
+                                <input type="text" class="form-control-plaintext" value="Superadmin (Tidak dapat diubah)" readonly>
+                            <?php else: ?>
+                                
+                                <?php 
+                                    $is_editing = isset($user); 
+                                    // $disabled_attribute dihilangkan karena default-nya sekarang adalah TIDAK disabled (bisa diubah)
+                                    $role_value = old('role_id', $is_editing ? $user['role_id'] : '');
+                                ?>
+
+                                <!-- 
+                                Dropdown ditampilkan untuk TAMBAH BARU dan EDIT pengguna NON-SUPERADMIN.
+                                Karena role_id BISA diubah, kita menggunakan name="role_id" langsung pada select.
+                                -->
+                                <select class="form-select" id="role_id" name="role_id" 
+                                    <?= !$is_editing ? 'required' : '' ?>> <!-- 'required' hanya untuk TAMBAH baru -->
+                                    
+                                    <option value="">Pilih...</option>
+                                    <?php if (!empty($roles)): ?>
+                                        <?php foreach ($roles as $role): ?>
+                                            <?php 
+                                                // Logika untuk menyembunyikan opsi Superadmin (ID 1) dari dropdown biasa
+                                                $skip_option = ($role['id'] == 1);
+                                            ?>
+                                            <?php if (!$skip_option): // Hanya tampilkan opsi jika BUKAN Superadmin (ID 1) ?>
+                                                <option value="<?= esc($role['id']) ?>"
+                                                    <?= $role_value == $role['id'] ? 'selected' : '' ?>>
+                                                    <?= esc($role['nama_roles']) ?>
+                                                </option>
+                                            <?php endif; ?>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </select>
+                                
+                                <?php if ($is_editing): ?>
+                                    <small class="form-text text-muted">Anda dapat mengubah peran pengguna ini.</small>
                                 <?php endif; ?>
-                                <?php if (isset($user) && $user['role_id'] == 1): ?>
-                                    <option value="1" selected disabled>Superadmin (Tidak dapat diubah)</option>
-                                <?php endif; ?>
-                            </select>
+                                
+                            <?php endif; ?>
+
                             <?php if(session('errors.role_id')): ?>
+                                <!-- Menampilkan error validasi role_id -->
                                 <small class="text-danger"><?= session('errors.role_id') ?></small>
                             <?php endif ?>
                         </div>

@@ -9,6 +9,7 @@ use App\Models\M_judulKeterangan;
 use App\Models\M_isiKeterangan;
 use CodeIgniter\Controller;
 
+
 class MasterDataController extends Controller
 {
     protected $koordinatModel;
@@ -17,6 +18,7 @@ class MasterDataController extends Controller
     protected $judulKeteranganModel;
     protected $isiKeteranganModel;
     protected $pager;
+    protected $photoModel; // Deklarasi photoModel
 
     public function __construct()
     {
@@ -25,6 +27,7 @@ class MasterDataController extends Controller
         $this->sumberDataModel = new M_sumberData();
         $this->judulKeteranganModel = new M_judulKeterangan();
         $this->isiKeteranganModel = new M_isiKeterangan();
+        $this->photoModel = new \App\Models\M_photo();
         $this->pager = \Config\Services::pager();
     }
 
@@ -33,12 +36,8 @@ class MasterDataController extends Controller
         $sumberdataId = $this->request->getVar('sumberdata');
         $keyword = $this->request->getVar('keyword');
         
-        $koordinatQuery = $this->koordinatModel->select('koordinat.*, kecamatan.nama_kec, kelurahan.nama_kel, sumber_data.nama_sumber, kota_kab.nama_kotakab')
-                                             ->join('kecamatan', 'kecamatan.id_kec = koordinat.id_kec', 'left')
-                                             ->join('kelurahan', 'kelurahan.id_kel = koordinat.id_kel', 'left')
-                                             ->join('sumber_data', 'sumber_data.id_sumberdata = koordinat.id_sumberdata', 'left')
-                                             ->join('kota_kab', 'kota_kab.id_kotakab = koordinat.id_kotakab', 'left')
-                                             ->where('koordinat.deleted_at', null); // <-- BARU: Hanya tampilkan data yang belum terhapus
+        // Panggil kueri dasar (termasuk JOIN) dari Model
+        $koordinatQuery = $this->koordinatModel->getDataKoordinatQuery();
 
         if ($sumberdataId) {
             $koordinatQuery->where('koordinat.id_sumberdata', $sumberdataId);
@@ -62,7 +61,7 @@ class MasterDataController extends Controller
             'sumberdata'         => $this->sumberDataModel->findAll(),
             'judulKeterangan'    => $this->judulKeteranganModel->findAll(),
             'selectedSumberdata' => $sumberdataId,
-            'keyword'            => $keyword, // **TAMBAHKAN INI untuk mempertahankan nilai input search**
+            'keyword'            => $keyword,
         ];
 
         return view('Template/header', $data)
@@ -108,7 +107,6 @@ class MasterDataController extends Controller
         $id_koordinat = $this->request->getPost('id_koordinat');
         
         $rules = [
-            
             'id_sumberdata' => 'required',
             'latitude' => 'required',
             'longitude' => 'required',
@@ -163,7 +161,9 @@ class MasterDataController extends Controller
 
     public function delete($id)
     {
+        // Hard Delete data terkait (Keterangan)
         $this->isiKeteranganModel->where('id_koordinat', $id)->delete();
+        // Soft Delete marker utama (Model M_koordinat menangani deleted_by via hook)
         $this->koordinatModel->delete($id); 
 
         session()->setFlashdata('success', 'Data koordinat berhasil dihapus (soft delete)!');
@@ -191,49 +191,83 @@ class MasterDataController extends Controller
 
     public function deleteMultiple()
     {
+        $session = \Config\Services::session(); 
+    
         $ids = $this->request->getPost('selected');
-
-        if (!empty($ids) && is_array($ids)) {
-            // Hapus data keterangan terkait (hard delete)
-            $this->isiKeteranganModel->whereIn('id_koordinat', $ids)->delete();
+    
+        if (empty($ids) || !is_array($ids)) {
+            $session->setFlashdata('warning', 'Tidak ada data yang dipilih untuk dihapus.');
+            return redirect()->to('/koordinat');
+        }
+    
+        $db = \Config\Database::connect();
+        $db->transBegin(); // START TRANSACTION
+    
+        try {
+            // --- 1. Hapus File Fisik Foto dan Data Foto (Hard Delete) ---
+            $photos = $this->photoModel->whereIn('id_koordinat', $ids)->findAll();
             
-            // Soft Delete data koordinat
-            // Karena ini massal, kita perlu secara eksplisit memanggil update
-            // untuk mengisi kolom deleted_by sebelum menghapus.
-            $dataUpdate = [
-                'deleted_at' => date('Y-m-d H:i:s'),
-                'deleted_by' => session()->get('nama') ?? 'System/Guest'
-            ];
-            
-            // Lakukan update manual untuk mengisi deleted_by dan deleted_at
-            $this->koordinatModel->whereIn('id_koordinat', $ids)->update(null, $dataUpdate);
-
-            // Perintah delete akan mencari baris dengan deleted_at NULL.
-            // Setelah update di atas, kita tidak perlu memanggil delete() lagi.
-            // Namun, jika Anda ingin memastikan Soft Delete bekerja,
-            // baris di atas sudah cukup untuk menandai data sebagai 'terhapus'.
-            // Untuk memastikan konsistensi dengan fitur useSoftDeletes CodeIgniter,
-            // kita akan menggunakan metode 'purgeDeleted()' untuk membersihkan (jika perlu)
-            // atau cukup andalkan 'whereIn(id)->update(deleted_at)'
-
-            // Untuk kasus Soft Delete, update di atas sudah MENGHAPUS (secara soft) data.
-            // Jika Anda ingin mengandalkan fungsi delete() CI4 yang akan mengisi deleted_at,
-            // Anda harus mengulanginya satu per satu atau menggunakan trik.
-            
-            // **Pendekatan yang lebih bersih: Mengandalkan update manual untuk mass soft-delete**
-            // $this->koordinatModel->whereIn('id_koordinat', $ids)->update(null, $dataUpdate);
-            
-            // **ATAU, jika Anda ingin menggunakan fitur bawaan CI4, gunakan loop:**
-            foreach ($ids as $id) {
-                // Ini akan memicu hook setDeletedBy untuk setiap ID
-                $this->koordinatModel->delete($id, true); // True untuk memicu soft delete
+            if (!empty($photos)) {
+                foreach ($photos as $photo) {
+                    $file_path = FCPATH . $photo['file_path']; 
+                    if (file_exists($file_path)) {
+                        @unlink($file_path); 
+                    }
+                }
+                // Hard Delete data foto
+                if (!$this->photoModel->whereIn('id_koordinat', $ids)->delete()) {
+                    throw new \Exception("Gagal menghapus data foto terkait.");
+                }
+            }
+    
+            // --- 2. Hapus data keterangan terkait (Hard Delete) ---
+            if (!$this->isiKeteranganModel->whereIn('id_koordinat', $ids)->delete()) {
+                throw new \Exception("Gagal menghapus data keterangan terkait.");
             }
             
-            session()->setFlashdata('success', 'Data yang dipilih berhasil dihapus (soft delete)!');
-        } else {
-            session()->setFlashdata('warning', 'Tidak ada data yang dipilih untuk dihapus.');
+            // --- 3. Soft Delete Marker (Data Koordinat) ---
+            // TENTUKAN DATA UNTUK SOFT DELETE
+            $now = date('Y-m-d H:i:s');
+            $dataSoftDelete = [
+                // Harus diisi manual karena mass update melewati hook
+                'deleted_at' => $now, 
+                // Updated at harus diisi untuk memicu logika CI
+                'updated_at' => $now, 
+                'deleted_by' => $session->get('nama') ?? 'System/Guest' 
+            ];
+            
+            // Lakukan soft delete massal menggunakan Query Builder
+            // Memanggil builder() memastikan kita menggunakan Query Builder murni, bukan Model update hook yang kompleks.
+            $result = $this->koordinatModel
+                            ->builder()
+                            ->whereIn('id_koordinat', $ids)
+                            ->update($dataSoftDelete);
+    
+            if ($result === FALSE) { 
+                // Jika kueri gagal dieksekusi, lempar exception
+                throw new \Exception("Kueri Soft Delete massal gagal dieksekusi di database.");
+            }
+            
+            // --- 4. Cek Status Transaksi dan Commit ---
+            if ($db->transStatus() === FALSE) {
+                $db->transRollback();
+                log_message('error', 'DB STATUS: Transaksi gagal sebelum commit.');
+                throw new \Exception("Gagal melakukan commit database. Transaksi dibatalkan.");
+            }
+            
+            $db->transCommit(); // COMMIT: Semua berhasil.
+            
+            $session->setFlashdata('success', count($ids) . ' Data marker berhasil dihapus (soft delete).');
+            
+        } catch (\Exception $e) {
+            if ($db->transStatus() !== FALSE) {
+                $db->transRollback(); // ROLLBACK: Ada yang gagal.
+            }
+            
+            log_message('error', 'Multiple Soft Delete failed and rolled back. Detail: ' . $e->getMessage());
+            $session->setFlashdata('error', 'Gagal menghapus data. Transaksi dibatalkan. Pesan: ' . $e->getMessage());
         }
-
+    
         return redirect()->to('/koordinat');
     }
 }

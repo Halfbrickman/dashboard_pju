@@ -16,52 +16,72 @@ class M_user extends Model
     protected $useSoftDeletes    = true;
     
     protected $protectFields     = true;
-    // Tambahkan kolom _by ke allowedFields
-    protected $allowedFields     = ['username', 'nama', 'password', 'role_id', 'id_sumberdata', 'created_at', 'updated_at', 'deleted_at', 'created_by', 'updated_by', 'deleted_by']; // <-- DIREVISI
+    // Kolom yang diizinkan sesuai struktur DB Anda, TIDAK ADA kolom _by.
+    protected $allowedFields     = ['username', 'nama', 'password', 'role_id', 'id_sumberdata']; 
 
-    // Dates
+    // Dates (Hanya menggunakan kolom yang ada di DB Anda)
     protected $useTimestamps = true;
     protected $dateFormat    = 'datetime';
-    protected $createdField  = 'created_at';
-    protected $updatedField  = 'updated_at';
-    protected $deletedField  = 'deleted_at'; // Definisikan kolom untuk Soft Deletes
+    protected $createdField  = 'created_at'; // Kolom ini ada
+    protected $updatedField  = 'updated_at'; // Kolom ini ada
+    protected $deletedField  = 'deleted_at'; // Kolom ini ada
 
-    // Hooks untuk otomatis mengisi kolom _by
-    protected $beforeInsert = ['setCratedBy'];
-    protected $beforeUpdate = ['setUpdatedBy'];
-    protected $beforeDelete = ['setDeletedBy']; 
+    // Hooks: Hanya untuk Password dan Logika Role Superadmin
+    protected $beforeInsert = ['hashPassword'];
+    protected $beforeUpdate = ['hashPasswordIfPresent', 'handleSuperadminRole'];
+    protected $beforeDelete = []; // Tidak ada deleted_by, jadi kosongkan
 
-    // Function untuk mendapatkan nama user dari sesi
-    private function getCurrentUserNama()
+    // ******************************************************************
+    // HOOKS LOGIKA KHUSUS
+    // ******************************************************************
+    
+    // 1. Hook: Hash password saat insert
+    protected function hashPassword(array $data)
     {
-        return session()->get('nama') ?? 'System/Guest';
-    }
-
-    // Hook: Sebelum Insert, set 'created_by'
-    protected function setCratedBy(array $data)
-    {
-        $data['data']['created_by'] = $this->getCurrentUserNama();
-        return $data;
-    }
-
-    // Hook: Sebelum Update, set 'updated_by'
-    protected function setUpdatedBy(array $data)
-    {
-        $data['data']['updated_by'] = $this->getCurrentUserNama();
-        return $data;
-    }
-
-    // Hook: Sebelum Delete (Soft Delete), set 'deleted_by'
-    protected function setDeletedBy(array $data)
-    {
-        if ($this->useSoftDeletes && !empty($data['id'])) {
-            $this->update($data['id'], ['deleted_by' => $this->getCurrentUserNama()]);
+        if (isset($data['data']['password'])) {
+            $data['data']['password'] = password_hash($data['data']['password'], PASSWORD_DEFAULT);
         }
         return $data;
     }
 
-    // Validation (dikosongkan)
-    protected $validationRules       = [];
+    // 2. Hook: Hash password HANYA jika diisi saat update (jika kosong, jangan ubah)
+    protected function hashPasswordIfPresent(array $data)
+    {
+        // Jika field password ada di data yang dikirim
+        if (isset($data['data']['password'])) {
+            if (empty($data['data']['password'])) {
+                 // Jika kosong, hapus dari data yang akan diupdate agar password lama dipertahankan
+                unset($data['data']['password']); 
+            } else {
+                 // Jika diisi, hash password sebelum update
+                $data['data']['password'] = password_hash($data['data']['password'], PASSWORD_DEFAULT);
+            }
+        }
+        return $data;
+    }
+
+    // 3. Hook: Mengabaikan role_id=1 dari data yang akan disimpan (Solusi final untuk error role_id)
+    protected function handleSuperadminRole(array $data)
+    {
+        // Cek jika ini adalah operasi UPDATE DAN role_id yang dikirim adalah 1 (Superadmin)
+        if (isset($data['id']) && isset($data['data']['role_id']) && $data['data']['role_id'] == 1) {
+            
+            // Hapus 'role_id' dari data yang akan diupdate.
+            // Database akan mempertahankan nilai role_id lama.
+            unset($data['data']['role_id']);
+        }
+        return $data;
+    }
+
+    // ******************************************************************
+    // VALIDATION & UTILS
+    // ******************************************************************
+
+    // Aturan validasi (dapat digunakan oleh Controller atau Model)
+    protected $validationRules      = [
+        'role_id'     => 'permit_empty|integer', 
+        'password'    => 'permit_empty', 
+    ];
     protected $validationMessages    = [];
     protected $skipValidation        = false;
 
@@ -71,7 +91,7 @@ class M_user extends Model
         return $this->select('users.*, roles.nama_roles, sumber_data.nama_sumber')
                      ->join('roles', 'roles.id = users.role_id')
                      ->join('sumber_data', 'sumber_data.id_sumberdata = users.id_sumberdata', 'left') 
-                     ->where('users.deleted_at', null) // Sudah ada, tapi diperjelas di Model lain.
+                     ->where('users.deleted_at', null)
                      ->findAll();
     }
 }

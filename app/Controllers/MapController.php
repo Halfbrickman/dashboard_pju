@@ -63,9 +63,7 @@ class MapController extends BaseController
         $request = \Config\Services::request();
         
         // --- AWAL LOGIKA MULTIPLE FILTER ---
-        // 1. Ambil nilai sumber_data_id dari URL (contoh: "1,5,10")
         $sumber_ids_raw = $request->getGet('sumber_data_ids');
-        // 2. Ubah string menjadi array numerik: [1, 5, 10]
         $sumber_ids = $sumber_ids_raw ? array_map('intval', explode(',', $sumber_ids_raw)) : null; 
         // --- AKHIR LOGIKA MULTIPLE FILTER ---
 
@@ -84,11 +82,11 @@ class MapController extends BaseController
                 ->join('sumber_data', 'sumber_data.id_sumberdata = koordinat.id_sumberdata', 'left')
                 ->join('kota_kab', 'kota_kab.id_kotakab = koordinat.id_kotakab', 'left')
                 ->where('koordinat.id_koordinat', $koordinat_id)
-                ->where('koordinat.deleted_at', null) // <-- BARU
+                ->where('koordinat.deleted_at', null) // Filter data yang tidak dihapus
                 ->findAll();
         } else {
             // Panggil Model dengan array $sumber_ids yang baru
-            // Asumsi getFilteredMarkers sudah menambahkan where('deleted_at', null) di M_koordinat
+            // ASUMSI: getFilteredMarkers sudah menambahkan where('deleted_at', null) di M_koordinat
             $dataKoordinat = $this->koordinatModel->getFilteredMarkers($sumber_ids, $id_kotakab, $id_kec, $id_kel);
         }
 
@@ -155,10 +153,16 @@ class MapController extends BaseController
 
         // Hapus file fisik dari server jika ada
         if (file_exists($file_path)) {
-            unlink($file_path);
+            // Gunakan try-catch untuk unlink
+            try {
+                 unlink($file_path);
+            } catch (\Exception $e) {
+                // Catat error tetapi jangan hentikan proses DB delete
+                log_message('error', 'Gagal menghapus file fisik foto: ' . $e->getMessage());
+            }
         }
 
-        // Hapus data foto dari database
+        // Hapus data foto dari database (Hard Delete)
         if ($photoModel->delete($id_photo)) {
             return $this->response->setJSON(['status' => 'success', 'message' => 'Foto berhasil dihapus.']);
         } else {
@@ -214,7 +218,8 @@ class MapController extends BaseController
 
             // 2. Update atau tambah keterangan
             $keteranganModel = new \App\Models\M_isiKeterangan();
-            $keteranganModel->where('id_koordinat', $id)->delete();
+            // Hard delete semua keterangan lama
+            $keteranganModel->where('id_koordinat', $id)->delete(); 
             if ($keteranganData) {
                 foreach ($keteranganData as $id_jdlketerangan => $isi_keterangan) {
                     if (!empty($isi_keterangan)) {
@@ -329,11 +334,13 @@ class MapController extends BaseController
                         $cleanedName = preg_replace('/[^A-Za-z0-9_.]/', '_', $originalName);
                         $newName = str_replace(' ', '_', $cleanedName);
 
-                        $photo->move(FCPATH . 'uploads/photos', $newName);
+                        $upload_dir = 'uploads/photos/';
+                        $photo->move(FCPATH . $upload_dir, $newName);
+                        
                         $data_photo = [
                             'id_koordinat' => $koordinat_id,
                             'nama_photo' => $newName, // Simpan nama file yang telah diubah
-                            'file_path' => 'uploads/photos/' . $newName,
+                            'file_path' => $upload_dir . $newName,
                             'file_type' => $fileMimeType,
                             'file_size' => $photo->getSizeByUnit('kb')
                         ];
@@ -357,10 +364,12 @@ class MapController extends BaseController
         }
     }
 
+    // =========================================================================
+    // FUNGSI UTAMA: SOFT DELETE MARKER
+    // =========================================================================
     public function deleteMarker($id)
     {
         $request = \Config\Services::request();
-        // Pastikan permintaan datang dari AJAX
         if (!$request->isAJAX()) {
             return $this->response->setJSON(['status' => 'error', 'message' => 'Invalid request.', 'redirect' => false]);
         }
@@ -369,19 +378,31 @@ class MapController extends BaseController
         $db->transBegin();
 
         try {
-            // Hapus foto terkait (Hard Delete)
+            // 1. Ambil dan Hapus File Fisik Foto Terkait
             $photos = $this->photoModel->where('id_koordinat', $id)->findAll();
             foreach ($photos as $photo) {
-                // ... (Logika hapus file fisik)
+                $file_path = FCPATH . $photo['file_path']; // Pastikan path benar
+                
+                // Hapus file fisik dari server jika ada
+                if (file_exists($file_path)) {
+                    // Gunakan try-catch untuk unlink (mengatasi masalah permission)
+                    try {
+                        unlink($file_path);
+                    } catch (\Exception $e) {
+                         log_message('error', 'Gagal menghapus file fisik foto (' . $file_path . '): ' . $e->getMessage());
+                    }
+                }
+                
+                // Hapus data foto dari database (Hard Delete)
                 $this->photoModel->delete($photo['id_photo']);
             }
 
-            // Hapus keterangan terkait (Hard Delete)
+            // 2. Hapus keterangan terkait (Hard Delete)
             $this->isiKeteranganModel->where('id_koordinat', $id)->delete();
 
-            // Lakukan Soft Delete untuk marker utama
-            // Ini akan memicu hook setDeletedBy di M_koordinat.
-            if ($this->koordinatModel->delete($id, true)) { // True untuk memicu soft delete
+            // 3. Lakukan Soft Delete untuk marker utama
+            // Jika useSoftDeletes di M_koordinat TRUE, maka delete() otomatis soft delete
+            if ($this->koordinatModel->delete($id)) { 
                 $db->transCommit();
                 return $this->response->setJSON(['status' => 'success', 'message' => 'Data berhasil dihapus (soft delete).']);
             } else {
@@ -395,9 +416,12 @@ class MapController extends BaseController
             return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal menghapus data: ' . $e->getMessage()]);
         }
     }
+    // =========================================================================
+    // AKHIR FUNGSI SOFT DELETE MARKER
+    // =========================================================================
 
     // =========================================================================
-    // FUNGSI EXPORT KML (Disesuaikan untuk Multi-Filter)
+    // FUNGSI EXPORT KML (Disesuaikan untuk Multi-Filter dan Soft Delete)
     // =========================================================================
     public function exportKML()
     {
@@ -413,10 +437,9 @@ class MapController extends BaseController
         $builder = $this->koordinatModel->select('koordinat.*, sumber_data.nama_sumber, isi_keterangan.isi_keterangan, isi_keterangan.id_koordinat')
             ->join('sumber_data', 'sumber_data.id_sumberdata = koordinat.id_sumberdata', 'left')
             ->join('isi_keterangan', 'isi_keterangan.id_koordinat = koordinat.id_koordinat', 'left')
-            ->where('koordinat.deleted_at', null); // <-- BARU: Tambahkan filter soft delete
+            ->where('koordinat.deleted_at', null); // <-- Sudah benar
 
         if ($sumber_ids) {
-            // Ini adalah inti dari filter berganda. whereIn() mencari data yang cocok dengan salah satu ID dalam array.
             $builder->whereIn('koordinat.id_sumberdata', $sumber_ids);
         }
         if ($id_kotakab) {
@@ -438,7 +461,8 @@ class MapController extends BaseController
         foreach ($koordinatData as $item) {
             $kmlContent .= '<Placemark>';
             $kmlContent .= '<name>' . htmlspecialchars($item['nama_sumber'] . ' - ID ' . $item['id_koordinat']) . '</name>';
-            $kmlContent .= '<description><![CDATA[<b>Keterangan:</b> ' . htmlspecialchars($item['keterangan_lokasi'] ?? 'N/A') . '<br><b>Koordinat:</b> ' . $item['latitude'] . ', ' . $item['longitude'] . ']]></description>';
+            // Perhatikan bahwa $item['keterangan_lokasi'] tidak ada di query, mungkin perlu penyesuaian di Model
+            $kmlContent .= '<description><![CDATA[<b>Keterangan:</b> ' . htmlspecialchars($item['isi_keterangan'] ?? 'N/A') . '<br><b>Koordinat:</b> ' . $item['latitude'] . ', ' . $item['longitude'] . ']]></description>';
             $kmlContent .= '<Point>';
             $kmlContent .= '<coordinates>' . $item['longitude'] . ',' . $item['latitude'] . ',0</coordinates>';
             $kmlContent .= '</Point>';
@@ -456,7 +480,7 @@ class MapController extends BaseController
     }
 
     // =========================================================================
-    // FUNGSI EXPORT EXCEL (Disesuaikan untuk Multi-Filter)
+    // FUNGSI EXPORT EXCEL (Disesuaikan untuk Multi-Filter dan Soft Delete)
     // =========================================================================
     public function exportExcel()
     {
@@ -471,10 +495,10 @@ class MapController extends BaseController
         $id_kec = $this->request->getGet('id_kec');
         $id_kel = $this->request->getGet('id_kel');
 
+        // ASUMSI: getDataKoordinatQuery() di Model M_koordinat sudah termasuk where('deleted_at', null)
         $koordinatBuilder = $this->koordinatModel->getDataKoordinatQuery();
         
         if ($sumber_ids) {
-            // Ini adalah inti dari filter berganda. whereIn() mencari data yang cocok dengan salah satu ID dalam array.
             $koordinatBuilder->whereIn('koordinat.id_sumberdata', $sumber_ids);
         }
         if ($id_kotakab) {
@@ -560,7 +584,7 @@ class MapController extends BaseController
     }
 
     // =========================================================================
-    // FUNGSI EXPORT PDF (Disesuaikan untuk Multi-Filter)
+    // FUNGSI EXPORT PDF (Disesuaikan untuk Multi-Filter dan Soft Delete)
     // =========================================================================
     public function exportPDF()
     {
@@ -581,10 +605,10 @@ class MapController extends BaseController
             ->join('sumber_data', 'sumber_data.id_sumberdata = koordinat.id_sumberdata', 'left')
             ->join('kota_kab', 'kota_kab.id_kotakab = koordinat.id_kotakab', 'left')
             ->join('kecamatan', 'kecamatan.id_kec = koordinat.id_kec', 'left')
-            ->join('kelurahan', 'kelurahan.id_kel = koordinat.id_kel', 'left');
+            ->join('kelurahan', 'kelurahan.id_kel = koordinat.id_kel', 'left')
+            ->where('koordinat.deleted_at', null); // <-- PERBAIKAN: Filter Soft Delete ditambahkan
 
         if ($sumber_ids) {
-            // Ini adalah inti dari filter berganda. whereIn() mencari data yang cocok dengan salah satu ID dalam array.
             $koordinatBuilder->whereIn('koordinat.id_sumberdata', $sumber_ids);
         }
         if ($id_kotakab) {
