@@ -227,6 +227,10 @@
             <strong>Kelurahan:</strong> ${item.nama_kel || '-'}<br>
             <strong>Latitude:</strong> ${item.latitude || '-'}<br>
             <strong>Longitude:</strong> ${item.longitude || '-'}<br>
+            <strong>Dibuat oleh:</strong> ${item.created_by || 'N/A'}<br>
+            <strong>Tanggal Dibuat:</strong> ${item.created_at ? new Date(item.created_at).toLocaleString() : 'N/A'}<br>
+            <strong>Diubah oleh:</strong> ${item.updated_by || 'N/A'}<br>
+            <strong>Tanggal Diubah:</strong> ${item.updated_at ? new Date(item.updated_at).toLocaleString() : 'N/A'}<br>
             <hr>
         `;
 
