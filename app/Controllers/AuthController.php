@@ -3,13 +3,14 @@
 namespace App\Controllers;
 
 use App\Models\M_user;
-use CodeIgniter\Controller; // <-- Dihapus karena kelas ini extends BaseController
 
 class AuthController extends BaseController
 {
     // Tampilkan halaman login
     public function login()
     {
+        // Panggil helper form jika diperlukan
+        helper(['form']); 
         return view('auth/login');
     }
 
@@ -22,19 +23,22 @@ class AuthController extends BaseController
         $username = $this->request->getVar('username');
         $password = $this->request->getVar('password');
 
-        $user = $userModel->where('username', $username)->first();
+        // Cari user berdasarkan username dan bersihkan input
+        $user = $userModel->where('username', trim($username))->first();
 
         if ($user) {
             $hashedPassword = $user['password'];
+
+            // Verifikasi password dengan hash yang tersimpan di DB
             if (password_verify($password, $hashedPassword)) {
                 
-                // DATA SESSION DISESUAIKAN DENGAN FIELD BARU
+                // DATA SESSION
                 $ses_data = [
                     'id'            => $user['id'],
                     'username'      => $user['username'],
-                    'nama'          => $user['nama'] ?? $user['username'], // Ambil nama, jika null gunakan username
+                    'nama'          => $user['nama'] ?? $user['username'], // Gunakan 'nama' jika tersedia
                     'role_id'       => $user['role_id'],
-                    'id_sumberdata' => $user['id_sumberdata'], // Tambahkan id_sumberdata
+                    'id_sumberdata' => $user['id_sumberdata'], 
                     'isLoggedIn'    => true
                 ];
                 $session->set($ses_data);
@@ -42,11 +46,13 @@ class AuthController extends BaseController
                 return redirect()->to('/dashboard');
             } else {
                 // Password salah
+                log_message('debug', 'AUTH DEBUG - Verifikasi password GAGAL.');
                 $session->setFlashdata('msg', 'Username atau password salah.');
                 return redirect()->to('/login');
             }
         } else {
             // Username tidak ditemukan
+            log_message('debug', 'AUTH DEBUG - Username TIDAK DITEMUKAN.');
             $session->setFlashdata('msg', 'Username atau password salah.');
             return redirect()->to('/login');
         }
@@ -69,18 +75,18 @@ class AuthController extends BaseController
         
         $rules = [
             'username' => 'required|min_length[5]|max_length[20]|is_unique[users.username]',
-            'password' => 'required|min_length[8]|max_length[255]',
+            'password' => 'required|min_length[8]|max_length[255]', 
             'password_confirm' => 'required|matches[password]'
         ];
 
         if ($this->validate($rules)) {
-            // DATA REGISTRASI ADMIN DISESUAIKAN
+            // DATA REGISTRASI ADMIN: Lakukan HASHING di Controller
             $data = [
                 'username' => $this->request->getVar('username'),
-                'password' => password_hash($this->request->getVar('password'), PASSWORD_BCRYPT),
-                'nama'     => $this->request->getVar('username'), // Default: nama sama dengan username
+                'password' => password_hash($this->request->getVar('password'), PASSWORD_DEFAULT), // <-- HASHING DI SINI
+                'nama'     => $this->request->getVar('username'), 
                 'role_id'  => 1, // Role Admin
-                'id_sumberdata' => null // Default: null untuk admin
+                'id_sumberdata' => null 
             ];
             
             $userModel->insert($data);
@@ -97,6 +103,7 @@ class AuthController extends BaseController
     // Tampilkan form registrasi user biasa
     public function register()
     {
+        helper(['form']); 
         return view('auth/register');
     }
 
@@ -114,13 +121,13 @@ class AuthController extends BaseController
         }
 
         $modelUser = new M_user();
-        // DATA REGISTRASI USER BIASA DISESUAIKAN
+        // DATA REGISTRASI USER BIASA: Lakukan HASHING di Controller
         $userData = [
             'username' => $this->request->getPost('username'),
-            'password' => password_hash($this->request->getPost('password'), PASSWORD_DEFAULT),
-            'nama'     => $this->request->getPost('username'), // Default: nama sama dengan username
+            'password' => password_hash($this->request->getPost('password'), PASSWORD_DEFAULT), // <-- HASHING DI SINI
+            'nama'     => $this->request->getPost('username'), 
             'role_id' => 2, // Role User Biasa
-            'id_sumberdata' => null // Default: null untuk user biasa
+            'id_sumberdata' => null 
         ];
 
         $modelUser->insert($userData);

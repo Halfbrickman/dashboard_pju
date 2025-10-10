@@ -18,7 +18,7 @@ class MasterDataController extends Controller
     protected $judulKeteranganModel;
     protected $isiKeteranganModel;
     protected $pager;
-    protected $photoModel; // Deklarasi photoModel
+    protected $photoModel;
 
     public function __construct()
     {
@@ -166,7 +166,7 @@ class MasterDataController extends Controller
         // Soft Delete marker utama (Model M_koordinat menangani deleted_by via hook)
         $this->koordinatModel->delete($id); 
 
-        session()->setFlashdata('success', 'Data koordinat berhasil dihapus (soft delete)!');
+        session()->setFlashdata('success', 'Data koordinat berhasil dihapus!');
 
         return redirect()->to('/koordinat');
     }
@@ -257,7 +257,7 @@ class MasterDataController extends Controller
             
             $db->transCommit(); // COMMIT: Semua berhasil.
             
-            $session->setFlashdata('success', count($ids) . ' Data marker berhasil dihapus (soft delete).');
+            $session->setFlashdata('success', count($ids) . ' Data marker berhasil dihapus.');
             
         } catch (\Exception $e) {
             if ($db->transStatus() !== FALSE) {

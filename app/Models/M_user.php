@@ -17,6 +17,7 @@ class M_user extends Model
     
     protected $protectFields     = true;
     // Kolom yang diizinkan sesuai struktur DB Anda, TIDAK ADA kolom _by.
+    // Catatan: 'password' ada di sini
     protected $allowedFields     = ['username', 'nama', 'password', 'role_id', 'id_sumberdata']; 
 
     // Dates (Hanya menggunakan kolom yang ada di DB Anda)
@@ -26,48 +27,24 @@ class M_user extends Model
     protected $updatedField  = 'updated_at'; // Kolom ini ada
     protected $deletedField  = 'deleted_at'; // Kolom ini ada
 
-    // Hooks: Hanya untuk Password dan Logika Role Superadmin
-    protected $beforeInsert = ['hashPassword'];
-    protected $beforeUpdate = ['hashPasswordIfPresent', 'handleSuperadminRole'];
-    protected $beforeDelete = []; // Tidak ada deleted_by, jadi kosongkan
+    // --- PERBAIKAN KRITIS: Hapus semua hook hashing. Hashing dilakukan di Controller. ---
+    protected $beforeInsert = []; 
+    protected $beforeUpdate = ['handleSuperadminRole']; 
+    protected $beforeDelete = []; 
 
     // ******************************************************************
     // HOOKS LOGIKA KHUSUS
     // ******************************************************************
     
-    // 1. Hook: Hash password saat insert
-    protected function hashPassword(array $data)
-    {
-        if (isset($data['data']['password'])) {
-            $data['data']['password'] = password_hash($data['data']['password'], PASSWORD_DEFAULT);
-        }
-        return $data;
-    }
+    // Catatan: Fungsi hashPassword dan hashPasswordIfPresent DIBUANG.
 
-    // 2. Hook: Hash password HANYA jika diisi saat update (jika kosong, jangan ubah)
-    protected function hashPasswordIfPresent(array $data)
-    {
-        // Jika field password ada di data yang dikirim
-        if (isset($data['data']['password'])) {
-            if (empty($data['data']['password'])) {
-                 // Jika kosong, hapus dari data yang akan diupdate agar password lama dipertahankan
-                unset($data['data']['password']); 
-            } else {
-                 // Jika diisi, hash password sebelum update
-                $data['data']['password'] = password_hash($data['data']['password'], PASSWORD_DEFAULT);
-            }
-        }
-        return $data;
-    }
-
-    // 3. Hook: Mengabaikan role_id=1 dari data yang akan disimpan (Solusi final untuk error role_id)
+    // Hook: Mengabaikan role_id=1 dari data yang akan disimpan (Hanya untuk UPDATE)
     protected function handleSuperadminRole(array $data)
     {
         // Cek jika ini adalah operasi UPDATE DAN role_id yang dikirim adalah 1 (Superadmin)
         if (isset($data['id']) && isset($data['data']['role_id']) && $data['data']['role_id'] == 1) {
             
             // Hapus 'role_id' dari data yang akan diupdate.
-            // Database akan mempertahankan nilai role_id lama.
             unset($data['data']['role_id']);
         }
         return $data;
