@@ -7,22 +7,6 @@
                 class="text-muted"><strong>PJU Data Center</strong></span> &copy;
                 </p>
             </div>
-            <div class="col-6 text-end">
-                <ul class="list-inline">
-                    <li class="list-inline-item">
-                    <span class="text-muted">Support</span>
-                    </li>
-                    <li class="list-inline-item">
-                    <span class="text-muted">Help Center</span>
-                    </li>
-                    <li class="list-inline-item">
-                    <span class="text-muted">Privacy</span>
-                    </li>
-                    <li class="list-inline-item">
-                    <span class="text-muted">Terms</span>
-                    </li>
-                </ul>
-            </div>
         </div>
     </div>
 </footer>

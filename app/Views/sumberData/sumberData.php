@@ -4,9 +4,7 @@
             <h1 class="h3 mb-3 fw-bold">Master Sumber Data</h1>
             <div class="ms-auto card-tools">
                 <?php if (session()->get('role_id') == 1) : ?>
-                    <div class="ms-auto card-tools">
-                        <a href="/sumberdata/form" class="btn btn-primary btn-md fw-bold">Tambah Data</a>
-                    </div>
+                    <a href="/sumberdata/form" class="btn btn-primary btn-md fw-bold">Tambah Data</a>
                 <?php endif; ?>
             </div>
         </div>
@@ -30,7 +28,8 @@
                             </thead>
                             <tbody>
                                 <?php if (!empty($sumber_data)) : ?>
-                                    <?php $no = 1; ?> <?php foreach ($sumber_data as $sumber) : ?>
+                                    <?php $no = 1; ?> 
+                                    <?php foreach ($sumber_data as $sumber) : ?>
                                         <tr>
                                             <td><?= $no++; ?></td> 
                                             <td><?= esc($sumber['nama_sumber']); ?></td>
@@ -43,10 +42,14 @@
                                             <?php if (session()->get('role_id') == 1) : ?>
                                                 <td class="text-end" style="width: 150px;">
                                                     <a href="/sumberdata/form/<?= esc($sumber['id_sumberdata']); ?>" class="btn btn-warning btn-sm" style="border-radius: 10px;">Edit</a>
+                                                    
                                                     <form id="delete-form-<?= esc($sumber['id_sumberdata']); ?>" action="/sumberdata/delete/<?= esc($sumber['id_sumberdata']); ?>" method="post" class="d-inline">
                                                         <?= csrf_field(); ?>
-                                                        <input type="hidden" name="_method" value="POST"> 
-                                                        <button type="button" class="btn btn-danger btn-sm delete-btn" style="border-radius: 10px;" data-id="<?= esc($sumber['id_sumberdata']); ?>" data-name="<?= esc($sumber['nama_sumber']); ?>">Hapus</button>
+                                                        <input type="hidden" name="_method" value="DELETE"> 
+                                                        
+                                                        <button type="button" class="btn btn-danger btn-sm delete-btn" style="border-radius: 10px;" 
+                                                                data-id="<?= esc($sumber['id_sumberdata']); ?>" 
+                                                                data-name="<?= esc($sumber['nama_sumber']); ?>">Hapus</button>
                                                     </form>
                                                 </td>
                                             <?php endif; ?>
@@ -65,19 +68,21 @@
         </div>
     </div>
 </main>
-<?php if (session()->getFlashdata('pesan')) : ?>
-    <script>
-        Swal.fire({
-            icon: 'success',
-            title: 'Berhasil!',
-            text: '<?= session()->getFlashdata('pesan'); ?>',
-            showConfirmButton: false,
-            timer: 2000
-        });
-    </script>
-<?php endif; ?>
+
 <script>
+    // 1. Script untuk menampilkan SweetAlert jika ada flashdata('pesan')
     document.addEventListener('DOMContentLoaded', function () {
+        <?php if (session()->getFlashdata('pesan')) : ?>
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil!',
+                text: '<?= session()->getFlashdata('pesan'); ?>',
+                showConfirmButton: false,
+                timer: 2000
+            });
+        <?php endif; ?>
+
+        // 2. Script untuk SweetAlert konfirmasi Hapus (Soft Delete)
         const deleteButtons = document.querySelectorAll('.delete-btn');
         deleteButtons.forEach(button => {
             button.addEventListener('click', function (e) {
@@ -85,16 +90,17 @@
                 const name = this.getAttribute('data-name');
                 
                 Swal.fire({
-                    title: 'Apakah Anda yakin?',
-                    text: `Data sumber "${name}" akan dihapus.`, // Ganti teks untuk soft delete
+                    title: 'Konfirmasi Hapus',
+                    text: `Apakah Anda yakin ingin menghapus data sumber "${name}"?`, 
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#d33',
                     cancelButtonColor: '#3085d6',
-                    confirmButtonText: 'Ya, hapus!',
+                    confirmButtonText: 'Ya, Hapus!',
                     cancelButtonText: 'Batal'
                 }).then((result) => {
                     if (result.isConfirmed) {
+                        // Submit form DELETE
                         document.getElementById('delete-form-' + id).submit();
                     }
                 });

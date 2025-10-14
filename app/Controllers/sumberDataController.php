@@ -3,9 +3,9 @@
 namespace App\Controllers;
 
 use App\Models\M_sumberData;
-use CodeIgniter\Controller; // Pastikan menggunakan use CodeIgniter\Controller; jika extend BaseController
+use CodeIgniter\Controller; 
 
-class sumberDataController extends Controller // Mengganti BaseController ke Controller jika BaseController Anda tidak didefinisikan
+class SumberDataController extends Controller 
 {
     protected $sumberDataModel;
 
@@ -16,10 +16,10 @@ class sumberDataController extends Controller // Mengganti BaseController ke Con
 
     public function index()
     {
-        // findAll() secara otomatis hanya mengambil data yang BELUM di soft delete
         $data = [
-            'title'        => 'Master Sumber Data',
-            'sumber_data'  => $this->sumberDataModel->findAll()
+            'title'         => 'Master Sumber Data',
+            // findAll() secara otomatis hanya mengambil data yang BELUM di soft delete
+            'sumber_data'   => $this->sumberDataModel->findAll()
         ];
         
         return view('Template/header', $data)
@@ -82,7 +82,7 @@ class sumberDataController extends Controller // Mengganti BaseController ke Con
     {
         // delete() akan otomatis melakukan SOFT DELETE (mengisi kolom deleted_at)
         $this->sumberDataModel->delete($id);
-        session()->setFlashdata('pesan', 'Data sumber berhasil dihapus (soft delete).');
+        session()->setFlashdata('pesan', 'Data sumber berhasil dihapus');
         return redirect()->to('/sumberdata');
     }
 }
