@@ -33,8 +33,14 @@ class MasterDataController extends Controller
 
     public function index()
     {
+        // ... (kode untuk mengambil $sumberdataId dan $keyword tetap sama)
         $sumberdataId = $this->request->getVar('sumberdata');
         $keyword = $this->request->getVar('keyword');
+
+        // 🔑 KUNCI: Ambil nilai 'per_page' dari URL atau gunakan default 10
+        $perPage = $this->request->getVar('per_page') ?? 10;
+        // Pastikan nilai perPage adalah angka dan bukan 0
+        $perPage = max(1, (int)$perPage);
         
         // Panggil kueri dasar (termasuk JOIN) dari Model
         $koordinatQuery = $this->koordinatModel->getDataKoordinatQuery();
@@ -44,6 +50,7 @@ class MasterDataController extends Controller
         }
 
         if ($keyword) {
+            // ... (logika orLike tetap sama)
             $koordinatQuery ->groupStart()
                             ->orLike('koordinat.latitude', $keyword)
                             ->orLike('koordinat.longitude', $keyword)
@@ -56,12 +63,15 @@ class MasterDataController extends Controller
 
         $data = [
             'title'              => 'Data Koordinat',
-            'koordinat'          => $koordinatQuery->paginate(10, 'default'),
+            // 🔑 KUNCI: Gunakan $perPage di fungsi paginate()
+            'koordinat'          => $koordinatQuery->paginate($perPage, 'default'),
             'pager'              => $this->koordinatModel->pager,
             'sumberdata'         => $this->sumberDataModel->findAll(),
             'judulKeterangan'    => $this->judulKeteranganModel->findAll(),
             'selectedSumberdata' => $sumberdataId,
             'keyword'            => $keyword,
+            // 🔑 TAMBAHKAN $perPage ke data
+            'perPage'            => $perPage,
         ];
 
         return view('Template/header', $data)
