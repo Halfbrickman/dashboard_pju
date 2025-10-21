@@ -43,7 +43,7 @@
                         <form id="delete-multiple-form" action="/koordinat/deleteMultiple" method="post" class="mb-4">
                             <?= csrf_field(); ?>
                             <?php if (session()->get('role_id') == 1) : ?>
-                                <div class="mb-3 d-flex justify-content-between align-items-center flex-wrap">
+                                <div class="mb-0 d-flex justify-content-between align-items-center flex-wrap">
                                     <div class="form-group d-flex align-items-center">
                                         <?php
                                         $perPageOptions = [10, 25, 50, 100];
@@ -59,7 +59,7 @@
                                         </select>
                                     </div>
                                     <div class="ms-auto">
-                                        <button type="button" class="btn btn-danger btn-sm" onclick="confirmDeleteMultiple()">Hapus Terpilih</button>
+                                        <button type="button" class="btn btn-danger btn-sm" id="delete-multiple-button" onclick="confirmDeleteMultiple()" style="display: none;">Hapus Terpilih</button>
                                     </div>
                                 </div>
                             <?php endif; ?>
@@ -119,7 +119,7 @@
                                 </table>
                             </div>
                         </form>
-                        </div>
+                    </div>
 
                     <div class="card-footer">
                         <?php
@@ -144,6 +144,34 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    /**
+     * Fungsi untuk memeriksa status checkbox dan menampilkan/menyembunyikan 
+     * tombol "Hapus Terpilih".
+     */
+    function toggleDeleteMultipleButton() {
+        const checkboxes = document.querySelectorAll('.checkItem');
+        const deleteButton = document.getElementById('delete-multiple-button');
+        let anyChecked = false;
+
+        // Periksa apakah ada checkbox yang dicentang
+        for (const checkbox of checkboxes) {
+            if (checkbox.checked) {
+                anyChecked = true;
+                break;
+            }
+        }
+
+        // Tampilkan atau sembunyikan tombol
+        if (deleteButton) {
+            deleteButton.style.display = anyChecked ? 'inline-block' : 'none';
+        }
+    }
+
+    // Panggil fungsi saat DOM selesai dimuat untuk mengatur status awal tombol
+    document.addEventListener('DOMContentLoaded', function() {
+        toggleDeleteMultipleButton();
+    });
+
     <?php if (session()->getFlashdata('success')) : ?>
         Swal.fire({
             title: 'Berhasil!',
@@ -170,17 +198,31 @@
         });
     }
 
-    // Kode untuk Hapus Massal
+    // Event listener untuk checkbox utama (Pilih Semua)
     document.getElementById('checkAll').onclick = function() {
         var checkboxes = document.getElementsByName('selected[]');
         for (var checkbox of checkboxes) {
             checkbox.checked = this.checked;
         }
+        // Panggil fungsi untuk memperbarui status tombol
+        toggleDeleteMultipleButton();
+    }
+
+    // Event listener untuk setiap checkbox item menggunakan event delegation pada <tbody>
+    const tableBody = document.querySelector('.table.table-hover.my-0 tbody');
+    if (tableBody) {
+        tableBody.addEventListener('change', function(event) {
+            // Pastikan event.target adalah checkbox item
+            if (event.target.classList.contains('checkItem')) {
+                toggleDeleteMultipleButton();
+            }
+        });
     }
 
     function confirmDeleteMultiple() {
-        var checkboxes = document.getElementsByName('selected[]');
         var anyChecked = false;
+        var checkboxes = document.getElementsByName('selected[]');
+        
         for (var checkbox of checkboxes) {
             if (checkbox.checked) {
                 anyChecked = true;
@@ -214,9 +256,7 @@
     }
 
     function submitPerPageForm(perPageValue) {
-
         document.getElementById('hidden_per_page').value = perPageValue;
-
         document.querySelector('form[action="/koordinat"]').submit();
     }
 </script>

@@ -16,7 +16,7 @@ class Dashboard extends BaseController
         $modelIsiKeterangan = new M_isiKeterangan();
         $modelNotifikasi = new M_notifikasi();
 
-        $koordinatData = $modelKordinat->getDataKoordinat();
+        $koordinatData = $modelKordinat->getDataKoordinat(); 
         
         if (!empty($koordinatData)) {
             $koordinatIds = array_column($koordinatData, 'id_koordinat');
@@ -52,11 +52,19 @@ class Dashboard extends BaseController
         ];
         
         foreach ($sumberData as $sumber) {
-            $jumlah = $modelKordinat->where('id_sumberdata', $sumber['id_sumberdata'])->countAllResults();
+            // 2. Penghitungan Total Data Per Sumber (Untuk Kartu)
+            // Tambahkan filter soft delete di sini:
+            $jumlah = $modelKordinat
+                ->where('id_sumberdata', $sumber['id_sumberdata'])
+                ->where('deleted_at', null) // <-- TAMBAHKAN KONDISI SOFT DELETE
+                ->countAllResults();
             $data['dataPerSumber'][] = ['nama' => $sumber['nama_sumber'], 'jumlah' => $jumlah];
             
+            // 3. Penghitungan Data Bulanan (Untuk Grafik)
+            // Tambahkan filter soft delete di sini:
             $queryBulanan = $modelKordinat->select("MONTH(created_at) AS bulan, COUNT(*) AS jumlah")
                 ->where('id_sumberdata', $sumber['id_sumberdata'])
+                ->where('deleted_at', null) // <-- TAMBAHKAN KONDISI SOFT DELETE
                 ->groupBy('bulan')
                 ->get();
 
@@ -79,7 +87,7 @@ class Dashboard extends BaseController
             ];
         }
 
-        // Encode data untuk chart
+        // ... (sisanya tetap sama)
         $data['labels'] = json_encode($data['labels']);
         $data['datasets'] = json_encode($data['datasets']);
         

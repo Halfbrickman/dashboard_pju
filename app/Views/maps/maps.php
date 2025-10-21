@@ -96,7 +96,7 @@
                             <div class="col-md-3 d-flex align-items-end justify-content-end">
                                 <div class="btn-group">
                                     <?php if (session()->get('role_id') == 1) : ?>
-                                        <a href="<?= base_url('koordinat/import'); ?>" class="btn btn-primary" style="height: 40px;">
+                                        <a href="<?= base_url('koordinat/import'); ?>" class="btn btn-primary" style="height: 40px; margin-right: 10px;">
                                             <i class="fas fa-file-import"></i> Import
                                         </a>
                                     <?php endif; ?>
