@@ -13,60 +13,54 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-body">
-                        
-                    <form action="/koordinat" method="get" class="form-inline mb-4 d-flex align-items-center flex-wrap">
-    
-                        <div class="form-group mr-2 me-2 mb-2">
-                            <select name="sumberdata" id="sumberdata" class="form-select form-select-sm">
-                                <option value="">Filter Berdasarkan Sumber Data</option>
-                                <?php foreach ($sumberdata as $sd) : ?>
-                                    <option value="<?= esc($sd['id_sumberdata']); ?>" <?= (isset($selectedSumberdata) && $selectedSumberdata == $sd['id_sumberdata']) ? 'selected' : '' ?>>
-                                        <?= esc($sd['nama_sumber']); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group mr-2 me-2 mb-2">
-                            <?php 
-                                $perPageOptions = [10, 25, 50, 100]; 
-                                $currentPerPage = $perPage ?? 10;
-                                
-                                // Ambil nilai filter yang ada untuk dibawa saat submit 'per_page'
-                                if (isset($selectedSumberdata) && $selectedSumberdata) : ?>
-                                    <input type="hidden" name="sumberdata" value="<?= esc($selectedSumberdata); ?>">
-                                <?php endif; ?>
-                                <?php if (isset($keyword) && $keyword) : ?>
-                                    <input type="hidden" name="keyword" value="<?= esc($keyword); ?>">
-                                <?php endif;
-                            ?>
-                            
-                            <select name="per_page" id="per_page" class="form-select form-select-sm" onchange="this.form.submit()">
-                                <?php foreach ($perPageOptions as $option) : ?>
-                                    <option value="<?= $option; ?>" <?= ($currentPerPage == $option) ? 'selected' : '' ?>>
-                                        <?= $option; ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
+
+                        <form action="/koordinat" method="get" class="form-inline mb-4 d-flex align-items-center flex-wrap">
+
+                            <div class="form-group mr-2 me-2 mb-2">
+                                <select name="sumberdata" id="sumberdata" class="form-select form-select-sm">
+                                    <option value="">Filter Berdasarkan Sumber Data</option>
+                                    <?php foreach ($sumberdata as $sd) : ?>
+                                        <option value="<?= esc($sd['id_sumberdata']); ?>" <?= (isset($selectedSumberdata) && $selectedSumberdata == $sd['id_sumberdata']) ? 'selected' : '' ?>>
+                                            <?= esc($sd['nama_sumber']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
 
                             <div class="form-group mr-2 me-2 mb-2">
                                 <input type="text" name="keyword" id="keyword" class="form-control form-control-sm" placeholder="Cari..." value="<?= esc($keyword ?? '') ?>">
                             </div>
-                            
+
+                            <input type="hidden" name="per_page" id="hidden_per_page" value="<?= esc($perPage ?? 10) ?>">
+
                             <button type="submit" class="btn btn-primary btn-sm mb-2">Terapkan Filter & Cari</button>
-                            
+
                             <?php if ($selectedSumberdata || $keyword) : ?>
                                 <a href="/koordinat" class="btn btn-secondary btn-sm ms-2 mb-2">Reset</a>
                             <?php endif; ?>
-                            
-                        </form>
 
+                        </form>
                         <form id="delete-multiple-form" action="/koordinat/deleteMultiple" method="post" class="mb-4">
                             <?= csrf_field(); ?>
                             <?php if (session()->get('role_id') == 1) : ?>
-                                <div class="mb-3 d-flex justify-content-end">
-                                    <button type="button" class="btn btn-danger btn-sm" onclick="confirmDeleteMultiple()">Hapus Terpilih</button>
+                                <div class="mb-3 d-flex justify-content-between align-items-center flex-wrap">
+                                    <div class="form-group d-flex align-items-center">
+                                        <?php
+                                        $perPageOptions = [10, 25, 50, 100];
+                                        $currentPerPage = $perPage ?? 10;
+                                        ?>
+                                        <label for="per_page_moved" class="me-2 mb-0 text-nowrap">Tampilkan data per halaman:</label>
+                                        <select name="per_page_moved" id="per_page_moved" class="form-select form-select-sm" onchange="submitPerPageForm(this.value)">
+                                            <?php foreach ($perPageOptions as $option) : ?>
+                                                <option value="<?= $option; ?>" <?= ($currentPerPage == $option) ? 'selected' : '' ?>>
+                                                    <?= $option; ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="ms-auto">
+                                        <button type="button" class="btn btn-danger btn-sm" onclick="confirmDeleteMultiple()">Hapus Terpilih</button>
+                                    </div>
                                 </div>
                             <?php endif; ?>
 
@@ -123,12 +117,12 @@
                                         <?php endif; ?>
                                     </tbody>
                                 </table>
-                            </div> 
+                            </div>
                         </form>
-                    </div>
-                    
+                        </div>
+
                     <div class="card-footer">
-                        <?php 
+                        <?php
                         // Persiapkan query string agar filter dan per_page tetap ada saat berganti halaman
                         $querystring = [
                             'sumberdata' => $selectedSumberdata,
@@ -137,9 +131,9 @@
                         ];
                         // Menghapus entri yang bernilai null atau kosong
                         $querystring = array_filter($querystring);
-                        
+
                         // Tampilkan links dengan membawa semua parameter filter
-                        echo $pager->links('default', 'bootstrap_pagination', $querystring); 
+                        echo $pager->links('default', 'bootstrap_pagination', $querystring);
                         ?>
                     </div>
                 </div>
@@ -217,5 +211,12 @@
                 document.getElementById('delete-multiple-form').submit();
             }
         });
+    }
+
+    function submitPerPageForm(perPageValue) {
+
+        document.getElementById('hidden_per_page').value = perPageValue;
+
+        document.querySelector('form[action="/koordinat"]').submit();
     }
 </script>
