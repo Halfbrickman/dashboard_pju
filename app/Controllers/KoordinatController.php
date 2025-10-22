@@ -3,17 +3,294 @@
 namespace App\Controllers;
 
 use App\Models\M_koordinat;
+use App\Models\M_Wilayah;
 use App\Models\M_sumberData;
 use App\Models\M_judulKeterangan;
 use App\Models\M_isiKeterangan;
-use App\Models\M_Wilayah;
-use App\Models\M_photo;
-use App\Models\M_notifikasi;
+use App\Models\M_photo; // Tambahkan M_photo
+use App\Models\M_notifikasi; // Tambahkan M_notifikasi
 use CodeIgniter\Controller;
-use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\IOFactory; // Tambahkan library untuk Import
 
-class KoordinatController extends BaseController
+class KoordinatController extends Controller // Nama kelas diganti menjadi KoordinatController
 {
+    // Properti Model dan Service
+    protected $koordinatModel;
+    protected $mWilayah;
+    protected $sumberDataModel;
+    protected $judulKeteranganModel;
+    protected $isiKeteranganModel;
+    protected $photoModel;
+    protected $notifikasiModel; // Tambahkan model notifikasi
+    protected $pager;
+
+    public function __construct()
+    {
+        // Inisialisasi semua Model yang diperlukan dari kedua Controller lama
+        $this->koordinatModel = new M_koordinat();
+        $this->mWilayah = new M_Wilayah();
+        $this->sumberDataModel = new M_sumberData();
+        $this->judulKeteranganModel = new M_judulKeterangan();
+        $this->isiKeteranganModel = new M_isiKeterangan();
+        $this->photoModel = new M_photo();
+        $this->notifikasiModel = new M_notifikasi(); 
+        $this->pager = \Config\Services::pager();
+    }
+
+    // Fungsi Index (dari MasterDataController)
+    public function index()
+    {
+        $sumberdataId = $this->request->getVar('sumberdata');
+        $keyword = $this->request->getVar('keyword');
+
+        // 🔑 KUNCI: Ambil nilai 'per_page' dari URL atau gunakan default 10
+        $perPage = $this->request->getVar('per_page') ?? 10;
+        // Pastikan nilai perPage adalah angka dan bukan 0
+        $perPage = max(1, (int)$perPage);
+        
+        // Panggil kueri dasar (termasuk JOIN) dari Model
+        $koordinatQuery = $this->koordinatModel->getDataKoordinatQuery();
+
+        if ($sumberdataId) {
+            $koordinatQuery->where('koordinat.id_sumberdata', $sumberdataId);
+        }
+
+        if ($keyword) {
+            $koordinatQuery ->groupStart()
+                            ->orLike('koordinat.latitude', $keyword)
+                            ->orLike('koordinat.longitude', $keyword)
+                            ->orLike('kota_kab.nama_kotakab', $keyword)
+                            ->orLike('kecamatan.nama_kec', $keyword)
+                            ->orLike('kelurahan.nama_kel', $keyword)
+                            ->orLike('sumber_data.nama_sumber', $keyword)
+                            ->groupEnd();
+        }
+
+        $data = [
+            'title'              => 'Data Koordinat',
+            // 🔑 KUNCI: Gunakan $perPage di fungsi paginate()
+            'koordinat'          => $koordinatQuery->paginate($perPage, 'default'),
+            'pager'              => $this->koordinatModel->pager,
+            'sumberdata'         => $this->sumberDataModel->findAll(),
+            'judulKeterangan'    => $this->judulKeteranganModel->findAll(),
+            'selectedSumberdata' => $sumberdataId,
+            'keyword'            => $keyword,
+            // 🔑 TAMBAHKAN $perPage ke data
+            'perPage'            => $perPage,
+        ];
+
+        return view('Template/header', $data)
+            . view('Template/sidebar')
+            . view('koordinat/masterData', $data)
+            . view('Template/footer');
+    }
+
+    // Fungsi Form (dari MasterDataController)
+    public function form($id = null)
+    {
+        $data = [
+            'title'      => 'Tambah Data Koordinat',
+            'koordinat'  => null,
+            'kotakab'    => $this->mWilayah->getKotaKab(),
+            'kecamatan'  => [],
+            'kelurahan'  => [],
+            'sumberdata' => $this->sumberDataModel->findAll(),
+            'isiKeterangan' => [],
+            'validation' => \Config\Services::validation()
+        ];
+        
+        if ($id) {
+            $koordinat = $this->koordinatModel->find($id);
+            if (empty($koordinat)) {
+                throw new \CodeIgniter\Exceptions\PageNotFoundException('Data Koordinat tidak ditemukan.');
+            }
+
+            $data['title'] = 'Edit Data Koordinat';
+            $data['koordinat'] = $koordinat;
+            $data['kecamatan'] = $this->mWilayah->getKecamatan(['id_kotakab' => $koordinat['id_kotakab']]);
+            $data['kelurahan'] = $this->mWilayah->getKelurahan(['id_kec' => $koordinat['id_kec']]);
+            $data['isiKeterangan'] = $this->isiKeteranganModel->where('id_koordinat', $id)->findAll();
+        }
+
+        return view('Template/header', $data)
+            . view('Template/sidebar')
+            . view('koordinat/formMasterData', $data)
+            . view('Template/footer');
+    }
+
+    // Fungsi Save (dari MasterDataController)
+    public function save()
+    {
+        $id_koordinat = $this->request->getPost('id_koordinat');
+        
+        $rules = [
+            'id_sumberdata' => 'required',
+            'latitude' => 'required',
+            'longitude' => 'required',
+        ];
+
+        if (!$this->validate($rules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $dataKoordinat = [
+            'latitude' => $this->request->getPost('latitude'),
+            'longitude' => $this->request->getPost('longitude'),
+            'id_kotakab' => $this->request->getPost('id_kotakab'),
+            'id_kec' => $this->request->getPost('id_kec'),
+            'id_kel' => $this->request->getPost('id_kel'),
+            'id_sumberdata' => $this->request->getPost('id_sumberdata'),
+        ];
+        
+        if ($id_koordinat) {
+            // Update mode
+            $this->koordinatModel->update($id_koordinat, $dataKoordinat);
+            // Hapus keterangan lama sebelum menyimpan yang baru
+            $this->isiKeteranganModel->where('id_koordinat', $id_koordinat)->delete();
+            $message = 'Data koordinat dan keterangannya berhasil diperbarui.';
+        } else {
+            // Create mode
+            $this->koordinatModel->insert($dataKoordinat);
+            $id_koordinat = $this->koordinatModel->getInsertID();
+            $message = 'Data koordinat dan keterangannya berhasil ditambahkan.';
+        }
+
+        // Proses dan simpan data keterangan dinamis
+        $keteranganInputs = $this->request->getPost('keterangan');
+        if ($keteranganInputs && is_array($keteranganInputs)) {
+            $batchData = [];
+            foreach ($keteranganInputs as $id_jdlketerangan => $isi_keterangan) {
+                if (!empty($isi_keterangan)) {
+                    $batchData[] = [
+                        'id_jdlketerangan' => $id_jdlketerangan,
+                        'isi_keterangan' => $isi_keterangan,
+                        'id_koordinat' => $id_koordinat,
+                    ];
+                }
+            }
+            if (!empty($batchData)) {
+                $this->isiKeteranganModel->insertBatch($batchData);
+            }
+        }
+
+        return redirect()->to('/koordinat')->with('success', $message);
+    }
+
+    // Fungsi Delete (dari MasterDataController)
+    public function delete($id)
+    {
+        // Hard Delete data terkait (Keterangan)
+        $this->isiKeteranganModel->where('id_koordinat', $id)->delete();
+        // Soft Delete marker utama (Model M_koordinat menangani deleted_by via hook)
+        $this->koordinatModel->delete($id); 
+
+        session()->setFlashdata('success', 'Data koordinat berhasil dihapus!');
+
+        return redirect()->to('/koordinat');
+    }
+
+    // Fungsi getKecamatanByKotaKab (dari MasterDataController - AJAX helper)
+    public function getKecamatanByKotaKab($id_kotakab)
+    {
+        $kecamatan = $this->mWilayah->getKecamatan(['id_kotakab' => $id_kotakab]);
+        return $this->response->setJSON($kecamatan);
+    }
+    
+    // Fungsi getKelurahanByKecamatan (dari MasterDataController - AJAX helper)
+    public function getKelurahanByKecamatan($id_kec)
+    {
+        $kelurahan = $this->mWilayah->getKelurahan(['id_kec' => $id_kec]);
+        return $this->response->setJSON($kelurahan);
+    }
+    
+    // Fungsi getJudulKeteranganBySumberData (dari MasterDataController - AJAX helper)
+    public function getJudulKeteranganBySumberData($id_sumberdata)
+    {
+        $judulKeterangan = $this->judulKeteranganModel->where('id_sumberdata', $id_sumberdata)->findAll();
+        return $this->response->setJSON($judulKeterangan);
+    }
+
+    // Fungsi deleteMultiple (dari MasterDataController)
+    public function deleteMultiple()
+    {
+        $session = \Config\Services::session(); 
+        $ids = $this->request->getPost('selected');
+    
+        if (empty($ids) || !is_array($ids)) {
+            $session->setFlashdata('warning', 'Tidak ada data yang dipilih untuk dihapus.');
+            return redirect()->to('/koordinat');
+        }
+    
+        $db = \Config\Database::connect();
+        $db->transBegin();
+    
+        try {
+            // --- 1. Hapus File Fisik Foto dan Data Foto (Hard Delete) ---
+            $photos = $this->photoModel->whereIn('id_koordinat', $ids)->findAll();
+            
+            if (!empty($photos)) {
+                foreach ($photos as $photo) {
+                    $file_path = FCPATH . $photo['file_path']; 
+                    if (file_exists($file_path)) {
+                        @unlink($file_path); 
+                    }
+                }
+                // Hard Delete data foto
+                if (!$this->photoModel->whereIn('id_koordinat', $ids)->delete()) {
+                    throw new \Exception("Gagal menghapus data foto terkait.");
+                }
+            }
+    
+            // --- 2. Hapus data keterangan terkait (Hard Delete) ---
+            if (!$this->isiKeteranganModel->whereIn('id_koordinat', $ids)->delete()) {
+                throw new \Exception("Gagal menghapus data keterangan terkait.");
+            }
+            
+            // --- 3. Soft Delete Marker (Data Koordinat) ---
+            $now = date('Y-m-d H:i:s');
+            $dataSoftDelete = [
+                'deleted_at' => $now, 
+                'updated_at' => $now, 
+                'deleted_by' => $session->get('nama') ?? 'System/Guest' 
+            ];
+            
+            $result = $this->koordinatModel
+                            ->builder()
+                            ->whereIn('id_koordinat', $ids)
+                            ->update($dataSoftDelete);
+    
+            if ($result === FALSE) { 
+                throw new \Exception("Kueri Soft Delete massal gagal dieksekusi di database.");
+            }
+            
+            // --- 4. Cek Status Transaksi dan Commit ---
+            if ($db->transStatus() === FALSE) {
+                $db->transRollback();
+                log_message('error', 'DB STATUS: Transaksi gagal sebelum commit.');
+                throw new \Exception("Gagal melakukan commit database. Transaksi dibatalkan.");
+            }
+            
+            $db->transCommit();
+            
+            $session->setFlashdata('success', count($ids) . ' Data marker berhasil dihapus.');
+            
+        } catch (\Exception $e) {
+            if ($db->transStatus() !== FALSE) {
+                $db->transRollback();
+            }
+            
+            log_message('error', 'Multiple Soft Delete failed and rolled back. Detail: ' . $e->getMessage());
+            $session->setFlashdata('error', 'Gagal menghapus data. Transaksi dibatalkan. Pesan: ' . $e->getMessage());
+        }
+    
+        return redirect()->to('/koordinat');
+    }
+    
+    // =========================================================
+    // FUNGSI IMPORT DATA (dari KoordinatController lama)
+    // =========================================================
+
+    // Fungsi Import (dari KoordinatController lama)
     public function import()
     {
         $data['title'] = 'Import Data Koordinat';
@@ -23,6 +300,7 @@ class KoordinatController extends BaseController
             . view('Template/footer');
     }
 
+    // Fungsi Upload (dari KoordinatController lama)
     public function upload()
     {
         $file = $this->request->getFile('excel_file');
@@ -58,19 +336,12 @@ class KoordinatController extends BaseController
         $pathFilePermanen = $uploadPath . $namaFileServer;
 
         try {
-            $koordinatModel = new M_koordinat();
-            $wilayahModel = new M_Wilayah();
-            $sumberDataModel = new M_sumberData();
-            $judulKeteranganModel = new M_judulKeterangan();
-            $isiKeteranganModel = new M_isiKeterangan();
-            $photoModel = new M_photo();
-            $notifikasiModel = new M_notifikasi();
-
-            $sumberDataMap = array_change_key_case(array_column($sumberDataModel->findAll(), 'id_sumberdata', 'nama_sumber'), CASE_LOWER);
-            $kotaKabMap = array_change_key_case(array_column($wilayahModel->getKotaKab(), 'id_kotakab', 'nama_kotakab'), CASE_LOWER);
-            $kecamatanMap = array_change_key_case(array_column($wilayahModel->getKecamatan(), 'id_kec', 'nama_kec'), CASE_LOWER);
-            $kelurahanMap = array_change_key_case(array_column($wilayahModel->getKelurahan(), 'id_kel', 'nama_kel'), CASE_LOWER);
-            $judulKeteranganMap = array_change_key_case(array_column($judulKeteranganModel->findAll(), 'id_jdlketerangan', 'jdl_keterangan'), CASE_LOWER);
+            // Mapping Data
+            $sumberDataMap = array_change_key_case(array_column($this->sumberDataModel->findAll(), 'id_sumberdata', 'nama_sumber'), CASE_LOWER);
+            $kotaKabMap = array_change_key_case(array_column($this->mWilayah->getKotaKab(), 'id_kotakab', 'nama_kotakab'), CASE_LOWER);
+            $kecamatanMap = array_change_key_case(array_column($this->mWilayah->getKecamatan(), 'id_kec', 'nama_kec'), CASE_LOWER);
+            $kelurahanMap = array_change_key_case(array_column($this->mWilayah->getKelurahan(), 'id_kel', 'nama_kel'), CASE_LOWER);
+            $judulKeteranganMap = array_change_key_case(array_column($this->judulKeteranganModel->findAll(), 'id_jdlketerangan', 'jdl_keterangan'), CASE_LOWER);
 
             $spreadsheet = IOFactory::load($pathFilePermanen);
             $sheet = $spreadsheet->getActiveSheet();
@@ -88,7 +359,7 @@ class KoordinatController extends BaseController
             $failedRows = [];
             $importedKoordinatIds = [];
 
-            $koordinatModel->db->transBegin();
+            $this->koordinatModel->db->transBegin();
 
             foreach ($sheet->getRowIterator(2) as $index => $row) {
                 $cellIterator = $row->getCellIterator();
@@ -109,18 +380,16 @@ class KoordinatController extends BaseController
 
                 $idSumberData = $sumberDataMap[strtolower($rowData['sumber data'])] ?? null;
                 
-                // Mengambil nilai wilayah, jika kosong akan diisi null
                 $idKotaKab = !empty($rowData['kota/kab']) ? ($kotaKabMap[strtolower($rowData['kota/kab'])] ?? null) : null;
                 $idKecamatan = !empty($rowData['kecamatan']) ? ($kecamatanMap[strtolower($rowData['kecamatan'])] ?? null) : null;
                 $idKelurahan = !empty($rowData['kelurahan']) ? ($kelurahanMap[strtolower($rowData['kelurahan'])] ?? null) : null;
 
-                // Cek hanya untuk sumber data, karena kota/kab, kecamatan, dan kelurahan bisa kosong
                 if (!$idSumberData) {
                     $failedRows[] = "Baris " . ($index) . ": Data Sumber Data tidak valid atau tidak ditemukan.";
                     continue;
                 }
 
-                $koordinatModel->insert([
+                $this->koordinatModel->insert([
                     'latitude' => $rowData['latitude'],
                     'longitude' => $rowData['longitude'],
                     'id_sumberdata' => $idSumberData,
@@ -128,7 +397,7 @@ class KoordinatController extends BaseController
                     'id_kec' => $idKecamatan,
                     'id_kel' => $idKelurahan
                 ]);
-                $newKoordinatId = $koordinatModel->getInsertID();
+                $newKoordinatId = $this->koordinatModel->getInsertID();
                 $importedKoordinatIds[] = $newKoordinatId;
 
                 $namaPhotoValue = $rowData['nama photo'] ?? null;
@@ -138,14 +407,14 @@ class KoordinatController extends BaseController
                         $trimmedName = trim($photoName);
                         if (!empty($trimmedName)) {
                             $sanitizedName = $this->_sanitizeFileName($trimmedName);
-                            $existingPhoto = $photoModel->where('nama_photo', $sanitizedName)->first();
+                            $existingPhoto = $this->photoModel->where('nama_photo', $sanitizedName)->first();
 
                             if ($existingPhoto) {
                                 if (empty($existingPhoto['id_koordinat'])) {
-                                    $photoModel->update($existingPhoto['id_photo'], ['id_koordinat' => $newKoordinatId]);
+                                    $this->photoModel->update($existingPhoto['id_photo'], ['id_koordinat' => $newKoordinatId]);
                                 }
                             } else {
-                                $photoModel->insert([
+                                $this->photoModel->insert([
                                     'id_koordinat' => $newKoordinatId,
                                     'nama_photo'   => $sanitizedName,
                                     'file_path'    => 'uploads/' . $sanitizedName
@@ -160,7 +429,7 @@ class KoordinatController extends BaseController
                     $isiKeterangan = $rowData[$dynHeader] ?? null;
 
                     if ($idJdlKeterangan && $isiKeterangan !== null && $isiKeterangan !== '') {
-                        $isiKeteranganModel->insert([
+                        $this->isiKeteranganModel->insert([
                             'id_koordinat' => $newKoordinatId,
                             'id_jdlketerangan' => $idJdlKeterangan,
                             'isi_keterangan' => $isiKeterangan
@@ -171,14 +440,14 @@ class KoordinatController extends BaseController
             }
 
 
-            if ($koordinatModel->db->transStatus() === false || !empty($failedRows)) {
-                $koordinatModel->db->transRollback();
+            if ($this->koordinatModel->db->transStatus() === false || !empty($failedRows)) {
+                $this->koordinatModel->db->transRollback();
                 if (file_exists($pathFilePermanen)) {
                     unlink($pathFilePermanen);
                 }
                 return redirect()->to('/koordinat/import')->with('error', 'Proses impor dibatalkan karena ada data yang tidak valid.')->with('failed_rows', $failedRows);
             } else {
-                $notifikasiBerhasil = true; // Asumsikan berhasil
+                $notifikasiBerhasil = true;
                 if ($importedCount > 0) {
                     $dataNotif = [
                         'pesan'       => "{$importedCount} data baru dari file '{$namaFileAsli}' berhasil diimport.",
@@ -187,28 +456,28 @@ class KoordinatController extends BaseController
                         'tipe'        => 'batch'
                     ];
 
-                    if (!$notifikasiModel->insert($dataNotif)) {
+                    if (!$this->notifikasiModel->insert($dataNotif)) {
                         $notifikasiBerhasil = false;
                     }
                 }
 
                 if ($notifikasiBerhasil) {
-                    $koordinatModel->db->transCommit();
+                    $this->koordinatModel->db->transCommit();
                     session()->setFlashdata('imported_count', $importedCount);
                     session()->setFlashdata('imported_koordinat_ids', implode(',', $importedKoordinatIds));
                     return redirect()->to('/koordinat/import')->with('success', "Berhasil mengimpor {$importedCount} data. Silakan unggah foto terkait.");
                 } else {
-                    $koordinatModel->db->transRollback();
+                    $this->koordinatModel->db->transRollback();
                     if (file_exists($pathFilePermanen)) {
                         unlink($pathFilePermanen);
                     }
-                    $notifError = $notifikasiModel->errors() ? implode(', ', $notifikasiModel->errors()) : 'Unknown error.';
+                    $notifError = $this->notifikasiModel->errors() ? implode(', ', $this->notifikasiModel->errors()) : 'Unknown error.';
                     return redirect()->to('/koordinat/import')->with('error', 'GAGAL MEMBUAT NOTIFIKASI: ' . $notifError);
                 }
             }
         } catch (\Exception $e) {
-            if (isset($koordinatModel) && $koordinatModel->db->transStatus() !== false) {
-                $koordinatModel->db->transRollback();
+            if ($this->koordinatModel->db->transStatus() !== false) {
+                $this->koordinatModel->db->transRollback();
             }
             if (isset($pathFilePermanen) && file_exists($pathFilePermanen)) {
                 unlink($pathFilePermanen);
@@ -218,20 +487,21 @@ class KoordinatController extends BaseController
         }
     }
 
+    // Fungsi Sanitize File Name (dari KoordinatController lama)
     private function _sanitizeFileName(string $filename): string
     {
         $info = pathinfo($filename);
         $name = $info['filename'];
         $extension = isset($info['extension']) ? '.' . $info['extension'] : '';
-        $sanitizedName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $name);
+        $sanitizedName = preg_replace('/[^a-zA-Z0-9_\-.]/', '_', $name); // Ditingkatkan agar mendukung titik untuk ekstensi
         $sanitizedName = preg_replace('/_+/', '_', $sanitizedName);
         $sanitizedName = trim($sanitizedName, '_');
         return $sanitizedName . $extension;
     }
 
+    // Fungsi Upload Photos (dari KoordinatController lama)
     public function uploadPhotos()
     {
-        $photoModel = new M_photo();
         $uploadedCount = 0;
         $uploadPath = 'uploads/';
         $filesToProcess = [];
@@ -286,7 +556,7 @@ class KoordinatController extends BaseController
                 $sanitizedName = $this->_sanitizeFileName($originalName);
 
                 if (rename($file, FCPATH . $uploadPath . $sanitizedName)) {
-                    $this->processPhoto($photoModel, $sanitizedName, $uploadPath);
+                    $this->processPhoto($sanitizedName, $uploadPath);
                     $uploadedCount++;
                 }
             } else {
@@ -296,7 +566,7 @@ class KoordinatController extends BaseController
                     $destinationPath = FCPATH . $uploadPath;
 
                     if ($file->move($destinationPath, $sanitizedName, true)) {
-                        $this->processPhoto($photoModel, $sanitizedName, $uploadPath);
+                        $this->processPhoto($sanitizedName, $uploadPath);
                         $uploadedCount++;
                     }
                 }
@@ -311,13 +581,14 @@ class KoordinatController extends BaseController
         return redirect()->to('/koordinat/import');
     }
 
-    private function processPhoto($photoModel, $sanitizedName, $uploadPath)
+    // Fungsi Process Photo (dari KoordinatController lama)
+    private function processPhoto($sanitizedName, $uploadPath)
     {
-        $existingPhoto = $photoModel->where('nama_photo', $sanitizedName)->first();
+        $existingPhoto = $this->photoModel->where('nama_photo', $sanitizedName)->first();
         if ($existingPhoto) {
-            $photoModel->update($existingPhoto['id_photo'], ['file_path' => $uploadPath . $sanitizedName]);
+            $this->photoModel->update($existingPhoto['id_photo'], ['file_path' => $uploadPath . $sanitizedName]);
         } else {
-            $photoModel->insert([
+            $this->photoModel->insert([
                 'id_koordinat' => null,
                 'nama_photo' => $sanitizedName,
                 'file_path' => $uploadPath . $sanitizedName
@@ -325,6 +596,7 @@ class KoordinatController extends BaseController
         }
     }
 
+    // Fungsi Delete Directory (dari KoordinatController lama)
     private function deleteDirectory($dir)
     {
         if (!file_exists($dir)) return true;
